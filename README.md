@@ -32,7 +32,7 @@ docker exec <CONTAINER_ID> sh -c 'aws sns --endpoint-url http://localhost:9911 c
 
 Download the latest release from https://github.com/jameskbride/fake-sns/releases and run:
 ```
-DB_PATH=/tmp/db.json java -jar sns-0.2.0.jar
+DB_PATH=/tmp/db.json java -jar fake-sns.jar
 ```
 Requires Java11.
 
@@ -59,7 +59,7 @@ See [camel documentation](http://camel.apache.org/components.html) for more deta
 
 Note: Environment variables can be used to specify URIs via `{{env:ENV_NAME}}`.
 
-Example: `aws-sqs://{{env:QUEUE_NAME}}?amazonSQSEndpoint={{env:SQS_ENDPOINT}}&...`
+Example: `aws2-sqs://{{env:QUEUE_NAME}}?amazonSQSEndpoint={{env:SQS_ENDPOINT}}&...`
 
 ### Example fake SQS integration:
 
