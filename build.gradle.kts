@@ -9,8 +9,10 @@ plugins {
   id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
+
+val versionNumber = "1.0.0"
 group = "com.jameskbride.fakesns"
-version = "1.0.0-SNAPSHOT"
+version = "$versionNumber-SNAPSHOT"
 
 repositories {
   mavenCentral()
@@ -62,7 +64,7 @@ compileTestKotlin.kotlinOptions.jvmTarget = "11"
 
 tasks.withType<ShadowJar> {
   archiveClassifier.set("fat")
-  archiveFileName.set("fake-sns.jar")
+  archiveFileName.set("fake-sns-$versionNumber.jar")
   mergeServiceFiles()
 }
 
