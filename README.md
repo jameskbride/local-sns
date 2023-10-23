@@ -1,5 +1,4 @@
 # Fake SNS
-
 Fake Amazon Simple Notification Service (SNS) for testing. Supports:
 - Create/List/Delete topics
 - Subscribe endpoint
@@ -71,6 +70,10 @@ docker run -d -p 9911:9911 -v "$PWD/example/config":/etc/sns jameskbride/fake-sn
 
 ## Development
 
-### Unit tests
+### Unit and Integration tests
 
 `./gradlew test`
+
+## Thanks
+Big thanks to Sergey Novikov ([@s12v](https://github.com/s12v)) for all the awesome work he did on https://github.com/s12v/sns. This project was largely inspired by Sergey's work,
+and takes a lot of design ideas from the original sns project. 
