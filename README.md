@@ -69,10 +69,13 @@ docker run -d -p 9911:9911 -v "$PWD/example/config":/etc/sns jameskbride/fake-sn
 ```
 
 ## Development
+This project uses Kotlin, [Vert.X](https://vertx.io), and [Apache Camel](https://camel.apache.org) for message routing.
 
 ### Unit and Integration tests
-
 `./gradlew test`
+
+This command will run the unit and integration tests all together. The integration tests will create in-memory web servers that
+run on ports 9922 and 9933, as well as starting elasticmq on port 9234.
 
 ## Thanks
 Big thanks to Sergey Novikov ([@s12v](https://github.com/s12v)) for all the awesome work he did on https://github.com/s12v/sns. This project was largely inspired by Sergey's work,
