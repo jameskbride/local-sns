@@ -135,7 +135,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
-    fun `it can publish to http endpoints`(vertx: Vertx, testContext: VertxTestContext) {
+    fun `it can publish to http endpoints`(testContext: VertxTestContext) {
         val message = "Hello, SNS!"
         // Define a POST route
         router.post("/testEndpoint").handler { routingContext ->
@@ -159,7 +159,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
-    fun `it can publish to multiple endpoints`(vertx: Vertx, testContext: VertxTestContext) {
+    fun `it can publish to multiple endpoints`(testContext: VertxTestContext) {
         val message = "Hello, SNS!"
         router.post("/testEndpoint1").handler { routingContext ->
             val request = routingContext.request()
@@ -195,7 +195,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
-    fun `an error with one endpoint does not stop publishing`(vertx: Vertx, testContext: VertxTestContext) {
+    fun `an error with one endpoint does not stop publishing`(testContext: VertxTestContext) {
         val message = "Hello, SNS!"
         // Define a POST route
         router.post("/testEndpoint").handler { routingContext ->
