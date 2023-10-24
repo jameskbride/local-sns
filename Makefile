@@ -1,4 +1,4 @@
-JAR = build/libs/fake-sns.jar
+JAR = build/libs/fake-sns-1.0.0.jar
 
 TAG = dev
 
