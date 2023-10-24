@@ -11,7 +11,7 @@ plugins {
 
 
 val versionNumber = "1.0.0"
-group = "com.jameskbride.fakesns"
+group = "com.jameskbride.localsns"
 version = "$versionNumber-SNAPSHOT"
 
 repositories {
@@ -26,7 +26,7 @@ val watchForChange = "src/**/*"
 val doOnChange = "${projectDir}/gradlew classes"
 
 application {
-  mainClass.set("com.jameskbride.fakesns.Main")
+  mainClass.set("com.jameskbride.localsns.Main")
 }
 
 dependencies {
@@ -64,7 +64,7 @@ compileTestKotlin.kotlinOptions.jvmTarget = "11"
 
 tasks.withType<ShadowJar> {
   archiveClassifier.set("fat")
-  archiveFileName.set("fake-sns-$versionNumber.jar")
+  archiveFileName.set("local-sns-$versionNumber.jar")
   mergeServiceFiles()
 }
 

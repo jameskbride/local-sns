@@ -18,6 +18,6 @@ RUN apt-get update && \
     apt-get clean
 
 ARG JAR=undefined
-ADD $JAR /fake-sns.jar
+ADD $JAR /local-sns.jar
 
-CMD ["java", "-jar", "/fake-sns.jar"]
+CMD ["java", "-jar", "/local-sns.jar"]

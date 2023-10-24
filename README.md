@@ -1,5 +1,5 @@
-# Fake SNS
-Fake Amazon Simple Notification Service (SNS) for testing. Supports:
+# Local SNS
+Fake Amazon Simple Notification Service (SNS) for local development. Supports:
 - Create/List/Delete topics
 - Subscribe endpoint
 - Publish message
@@ -12,12 +12,12 @@ Fake Amazon Simple Notification Service (SNS) for testing. Supports:
 
 Based on the `openjdk:11.0.13-jre-slim` image. Run it with the command:
 ```
-docker run -d -p 9911:9911 jameskbride/fake-sns
+docker run -d -p 9911:9911 jameskbride/local-sns
 ```
 
 If you would like to keep the topic/subscription database in the current host folder:
 ```
-docker run -d -p 9911:9911 -v "$PWD":/etc/sns jameskbride/fake-sns
+docker run -d -p 9911:9911 -v "$PWD":/etc/sns jameskbride/local-sns
 ```
 
 #### Using aws-cli
@@ -29,9 +29,9 @@ docker exec <CONTAINER_ID> sh -c 'aws sns --endpoint-url http://localhost:9911 c
 
 ### Jar
 
-Download the latest release from https://github.com/jameskbride/fake-sns/releases and run:
+Download the latest release from https://github.com/jameskbride/local-sns/releases and run:
 ```
-DB_PATH=/tmp/db.json java -jar fake-sns.jar
+DB_PATH=/tmp/db.json java -jar local-sns.jar
 ```
 Requires Java11.
 
@@ -65,7 +65,7 @@ Example: `aws2-sqs://{{env:QUEUE_NAME}}?amazonSQSEndpoint={{env:SQS_ENDPOINT}}&.
 Tested with [elasticmq](https://github.com/adamw/elasticmq).
 
 ```
-docker run -d -p 9911:9911 -v "$PWD/example/config":/etc/sns jameskbride/fake-sns
+docker run -d -p 9911:9911 -v "$PWD/example/config":/etc/sns jameskbride/local-sns
 ```
 
 ## Development

@@ -1,1 +1,1 @@
-rootProject.name = "fake-sns"
+rootProject.name = "local-sns"
