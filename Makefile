@@ -4,4 +4,4 @@ TAG = dev
 
 build-image:
 	./gradlew clean assemble
-	docker build --build-arg JAR=$(JAR) --tag local-sns:$(TAG) .
+	docker build --build-arg JAR=$(JAR) --tag jameskbride/local-sns:$(TAG) .
