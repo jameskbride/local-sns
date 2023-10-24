@@ -136,6 +136,7 @@ buildNumber.properties
 ### Gradle ###
 .gradle
 /buildTool/
+file-uploads
 
 # Ignore Gradle GUI config
 gradle-app.setting
@@ -165,3 +166,4 @@ nbdist/
 !.vscode/extensions.json
 
 db.json
+example/config/logs

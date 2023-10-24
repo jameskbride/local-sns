@@ -1,0 +1,18 @@
+version: '2'
+services:
+  sns:
+    image: jameskbride/local-sns:dev
+    ports:
+    - "9911:9911"
+    volumes:
+    - ./config/db.json:/etc/sns/db.json
+    - ./config/logs:/tmp/logs
+    depends_on:
+    - sqs
+  sqs:
+    image: s12v/elasticmq
+    ports:
+    - "9324:9324"
+    volumes:
+    - ./config/elasticmq.conf:/etc/elasticmq/elasticmq.conf
+
