@@ -29,7 +29,7 @@ class DatabaseVerticle: AbstractVerticle() {
             val subscriptions = getSubscriptionsMap(vertx)
             val newConfig = Configuration(
                 1,
-                LocalDateTime.now().toEpochSecond(ZoneOffset.UTC),
+                System.currentTimeMillis(),
                 topics = topics!!.values.toList(),
                 subscriptions = subscriptions!!.values.toList().flatten().distinct()
             )
