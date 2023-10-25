@@ -85,7 +85,7 @@ private fun publishMessage(
                 "x-amz-sns-subscription-arn" to subscription.arn,
                 "x-amz-sns-topic-arn" to subscription.topicArn
             )
-    logger.info("Publishing message to $decodedUrl: $message, with headers: $headers")
+    logger.debug("Publishing message to $decodedUrl: $message, with headers: $headers")
     producer.asyncRequestBodyAndHeaders(decodedUrl, message, headers)
         .exceptionally { it.printStackTrace() }
 }
