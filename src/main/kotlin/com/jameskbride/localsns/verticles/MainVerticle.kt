@@ -5,6 +5,7 @@ import com.jameskbride.localsns.routes.healthRoute
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Promise
+import io.vertx.core.http.HttpServerOptions
 import io.vertx.core.net.SocketAddress.inetSocketAddress
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.handler.BodyHandler
@@ -30,7 +31,7 @@ class MainVerticle : AbstractVerticle() {
 
     val socketAddress = inetSocketAddress(port, httpInterface)
 
-    val server = vertx.createHttpServer()
+    val server = vertx.createHttpServer(HttpServerOptions().setMaxFormAttributeSize(-1))
     server.requestHandler(router).listen(socketAddress) { http ->
       if (http.succeeded()) {
         logger.info("HTTP server started at $httpInterface:$port")
