@@ -10,7 +10,7 @@ plugins {
 }
 
 
-val versionNumber = "1.0.0"
+val versionNumber = "0.9.0"
 group = "com.jameskbride.localsns"
 version = "$versionNumber-SNAPSHOT"
 

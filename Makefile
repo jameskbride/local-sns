@@ -1,4 +1,4 @@
-JAR = build/libs/local-sns-1.0.0.jar
+JAR = build/libs/local-sns-0.9.0.jar
 
 TAG = dev
 
