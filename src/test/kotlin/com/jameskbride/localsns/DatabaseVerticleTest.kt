@@ -48,7 +48,6 @@ class DatabaseVerticleTest: BaseTest() {
 
         val config = ConfigFactory.load()
 
-        vertx.eventBus().publish("configChange", "conf")
         vertx.eventBus().consumer<String>("configChangeComplete") {
             vertx.fileSystem()
                 .readFile(getDbOutputPath(config))
@@ -63,5 +62,7 @@ class DatabaseVerticleTest: BaseTest() {
                     testContext.completeNow()
                 }
         }
+
+        vertx.eventBus().publish("configChange", "conf")
     }
 }
