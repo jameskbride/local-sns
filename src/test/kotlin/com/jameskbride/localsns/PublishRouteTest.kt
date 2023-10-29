@@ -19,7 +19,7 @@ class PublishRouteTest: BaseTest() {
     }
 
     @Test
-    fun `it returns an error when the TopicArn is missing`(testContext: VertxTestContext) {
+    fun `it returns an error when both the TopicArn and TargetArn are missing`(testContext: VertxTestContext) {
         val response = publish(topicArn = null, message = "message")
 
         Assertions.assertEquals(400, response.statusCode)

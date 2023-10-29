@@ -15,15 +15,23 @@ import java.util.regex.Pattern
 
 val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val logger: Logger = LogManager.getLogger("publishRoute")
-    val topicArn = getFormAttribute(ctx, "TopicArn")
+    val topicArnFormAttribute = getFormAttribute(ctx, "TopicArn")
+    val targetArnFormAttribute = getFormAttribute(ctx, "TargetArn")
+    val topicArn = getTopicArn(topicArnFormAttribute, targetArnFormAttribute)
     val message = getFormAttribute(ctx, "Message")
     val attributes = ctx.request().formAttributes()
         .filter { it.key.startsWith("MessageAttributes.entry") }
         .filterNot { it.key.matches(".*\\.DataType.*".toRegex()) }
     val vertx = ctx.vertx()
 
-    if (topicArn == null || message == null) {
-        val errorMessage = "TopicArn or Message are missing. TopicArn: $topicArn, Message: $message"
+    if (topicArn == null) {
+        val errorMessage = "Either TopicArn or TargetArn is required. TopicArn: $topicArnFormAttribute, TargetArn: $targetArnFormAttribute"
+        logAndReturnError(ctx, logger, errorMessage)
+        return@route
+    }
+
+    if (message == null) {
+        val errorMessage = "Message is missing. Message: $message"
         logAndReturnError(ctx, logger, errorMessage)
         return@route
     }
@@ -68,6 +76,10 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
               </PublishResponse>
             """.trimIndent()
         )
+}
+
+fun getTopicArn(topicArn: String?, targetArn: String?): String? {
+    return topicArn ?: targetArn
 }
 
 private fun publishMessage(

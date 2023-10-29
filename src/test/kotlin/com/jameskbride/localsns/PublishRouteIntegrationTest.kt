@@ -11,6 +11,7 @@ import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import org.elasticmq.server.ElasticMQServer
 import org.elasticmq.server.config.ElasticMQServerConfig
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -91,6 +92,26 @@ class PublishRouteIntegrationTest: BaseTest() {
         snsClient.publish(request)
 
         val queueUrl = "http://localhost:9324/000000000000/queue1"
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages()
+            assertTrue(messages.any { it.body() == message })
+            messages.forEach {
+                sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
+            }
+            testContext.completeNow()
+        }
+    }
+
+    @Test
+    fun `it can publish using the TargetArn`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        subscribe(topic.arn, createEndpoint("queue2"), "sqs")
+        val message = "Hello, SNS!"
+        val request = publishRequest(topic, message, useTargetArn = true)
+
+        snsClient.publish(request)
+
+        val queueUrl = "http://localhost:9324/000000000000/queue2"
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
             assertTrue(messages.any { it.body() == message })
@@ -240,14 +261,21 @@ class PublishRouteIntegrationTest: BaseTest() {
     private fun publishRequest(
         topic: Topic,
         message: String,
-        messageAttributes: Map<String, String> = mapOf()
+        messageAttributes: Map<String, String> = mapOf(),
+        useTargetArn:Boolean = false,
     ): PublishRequest? {
         val attributes =
             messageAttributes.map { it.key to MessageAttributeValue.builder().stringValue(it.value).build() }.toMap()
         return PublishRequest.builder()
-            .topicArn(topic.arn)
-            .message(message)
-            .messageAttributes(attributes)
-            .build()
+            .apply {
+                if (useTargetArn) {
+                    targetArn(topic.arn)
+                } else {
+                    topicArn(topic.arn)
+                }
+                message(message)
+                messageAttributes(attributes)
+            }.build()
+
     }
 }
