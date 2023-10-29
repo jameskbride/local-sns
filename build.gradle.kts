@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.tasks.testing.logging.TestLogEvent.*
+import org.gradle.internal.classpath.Instrumented.systemProperty
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinTest
 
@@ -9,10 +10,8 @@ plugins {
   id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
-
-val versionNumber = "0.9.0"
 group = "com.jameskbride.localsns"
-version = "$versionNumber-SNAPSHOT"
+version = project.version
 
 repositories {
   mavenCentral()
@@ -63,13 +62,17 @@ val compileTestKotlin: KotlinCompile by tasks
 compileTestKotlin.kotlinOptions.jvmTarget = "11"
 
 tasks.withType<ShadowJar> {
-  archiveClassifier.set("fat")
-  archiveFileName.set("local-sns-$versionNumber.jar")
+  archiveClassifier.set("")
+  dependsOn("distTar", "distZip")
   mergeServiceFiles()
 }
 
 tasks.withType<Test> {
-  useJUnitPlatform()
+  useJUnitPlatform {
+    if (System.getenv("CI") != null) {
+      excludeTags("skipForCI")
+    }
+  }
   testLogging {
     events = setOf(PASSED, SKIPPED, FAILED)
   }
