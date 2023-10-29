@@ -23,23 +23,9 @@ jobs:
       - name: Build and Test with Gradle
         run: ./gradlew build
 
-      - name: Docker Setup
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install docker.io
-          docker --version
-
-      - name: Build Docker Image
-        run: |
-          make build-image
-        working-directory: ./
-
-#      - name: List Docker Images
-#        run: docker images
-#
-#      - name: Push Docker Image to Container Registry
-#        run: |
-#          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-#          docker tag your-docker-image-name:latest ${{ secrets.DOCKER_REGISTRY_URL }}/your-docker-image-name:latest
-#          docker push ${{ secrets.DOCKER_REGISTRY_URL }}/your-docker-image-name:latest
-
+      - name: Build the Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: jameskbride/local-dns:dev
