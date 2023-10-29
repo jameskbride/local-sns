@@ -22,10 +22,3 @@ jobs:
 
       - name: Build and Test with Gradle
         run: ./gradlew build
-
-      - name: Build the Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          tags: jameskbride/local-dns:dev
