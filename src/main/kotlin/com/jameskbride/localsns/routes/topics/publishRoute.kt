@@ -1,7 +1,6 @@
 package com.jameskbride.localsns.routes.topics
 
 import com.jameskbride.localsns.*
-import com.jameskbride.localsns.models.Message
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
@@ -53,11 +52,15 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         val errorMessage = "Message is missing"
         logAndReturnError(ctx, logger, errorMessage)
         return@route
-    } else if (messageStructure != null) {
+    }
+
+    var messages = mapOf("default" to message)
+    if (messageStructure != null) {
         try {
-            val messages = Json.decodeValue(message, Message::class.java)
-            if (messages.sms != null || messages.application != null || messages.email != null || messages.emailJson != null) {
-                logger.warn("Unsupported protocol found. Must be one of: http, https, file, slack, sqs, lambda, rabbitmq")
+            messages = Json.decodeValue(message, HashMap::class.java) as Map<String, String>
+            if (messages["default"] == null) {
+                logAndReturnError(ctx, logger, "Attribute 'default' is required when MessageStructure is json.")
+                return@route
             }
         } catch (ex: Exception) {
             logAndReturnError(ctx, logger, "Message must be valid JSON")
@@ -73,7 +76,7 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     camelContext.start()
     subscriptions.forEach { subscription ->
         try {
-            publishMessage(producerTemplate, subscription, message, messageAttributes, logger)
+            publishMessage(producerTemplate, subscription, messages["default"]!!, messageAttributes, logger)
         } catch (e: Exception) {
             logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
         }
