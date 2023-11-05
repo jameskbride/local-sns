@@ -31,6 +31,17 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
+    if (!Pattern.matches(Topic.arnPattern, topicArn)) {
+        logAndReturnError(ctx, logger, "Invalid TopicARN or TargetArn: $topicArn")
+        return@route
+    }
+
+    val topicsMap = getTopicsMap(vertx)!!
+    if (!topicsMap.contains(topicArn)) {
+        logAndReturnError(ctx, logger, "Invalid TopicARN or TargetArn: $topicArn", NOT_FOUND, 404)
+        return@route
+    }
+
     if (messageStructure != null && messageStructure != "json") {
         logAndReturnError(ctx, logger, "MessageStructure must be json")
         return@route
@@ -42,16 +53,6 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
-    if (!Pattern.matches(Topic.arnPattern, topicArn)) {
-        logAndReturnError(ctx, logger, "Invalid TopicARN: $topicArn")
-        return@route
-    }
-
-    val topicsMap = getTopicsMap(vertx)!!
-    if (!topicsMap.contains(topicArn)) {
-        logAndReturnError(ctx, logger, "Invalid TopicARN: $topicArn", NOT_FOUND, 404)
-        return@route
-    }
     val messageAttributes = MessageAttribute.parse(attributes).associate { it.name to it.value }
     val subscriptionsMap = getSubscriptionsMap(vertx)
     val subscriptions = subscriptionsMap!!.getOrDefault(topicArn, listOf())
