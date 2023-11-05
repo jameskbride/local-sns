@@ -1,5 +1,6 @@
 package com.jameskbride.localsns.routes.topics
 
+import com.google.gson.annotations.SerializedName
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Subscription
@@ -54,7 +55,16 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     } else if (messageStructure != null) {
         try {
-            Json.decodeValue(message, String::class.java)
+            data class Message(
+                val default: String,
+                val http: String? = null,
+                val https: String? = null,
+                val file: String? = null,
+                val slack: String? = null,
+                @SerializedName("aws-sqs") val awsSqs: String? = null,
+                @SerializedName("aws2-lambda") val awsLambda: String? = null,
+                @SerializedName("rabbitmq") val rabbitMq: String? = null)
+            Json.decodeValue(message, Message::class.java)
         } catch (ex: Exception) {
             logAndReturnError(ctx, logger, "Message must be valid JSON")
             return@route
