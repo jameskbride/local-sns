@@ -57,6 +57,18 @@ class PublishRouteTest: BaseTest() {
         testContext.completeNow()
     }
 
+    @Test
+    fun `it returns an error when MessageStructure is valid and Message is not JSON`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        subscribe(topic.arn, createEndpoint("queue2"), "sqs")
+        val message = "Hello, SNS!"
+
+        val response = publish(topic.arn, message, messageStructure = "json")
+
+        assertEquals(400, response.statusCode)
+        testContext.completeNow()
+    }
+
     fun publish(topicArn: String?, message: String? = null, messageStructure: String? = null): Response {
         val data = mutableMapOf(
             "Action" to "Publish"

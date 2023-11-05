@@ -4,6 +4,7 @@ import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
+import io.vertx.core.json.Json
 import io.vertx.ext.web.RoutingContext
 import org.apache.camel.ProducerTemplate
 import org.apache.camel.impl.DefaultCamelContext
@@ -51,6 +52,13 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         val errorMessage = "Message is missing"
         logAndReturnError(ctx, logger, errorMessage)
         return@route
+    } else if (messageStructure != null) {
+        try {
+            Json.decodeValue(message, String::class.java)
+        } catch (ex: Exception) {
+            logAndReturnError(ctx, logger, "Message must be valid JSON")
+            return@route
+        }
     }
 
     val messageAttributes = MessageAttribute.parse(attributes).associate { it.name to it.value }
