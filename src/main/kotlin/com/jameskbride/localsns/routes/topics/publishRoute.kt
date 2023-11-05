@@ -19,6 +19,7 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val targetArnFormAttribute = getFormAttribute(ctx, "TargetArn")
     val topicArn = getTopicArn(topicArnFormAttribute, targetArnFormAttribute)
     val message = getFormAttribute(ctx, "Message")
+    val messageStructure = getFormAttribute(ctx, "MessageStructure")
     val attributes = ctx.request().formAttributes()
         .filter { it.key.startsWith("MessageAttributes.entry") }
         .filterNot { it.key.matches(".*\\.DataType.*".toRegex()) }
@@ -30,8 +31,13 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
+    if (messageStructure != null && messageStructure != "json") {
+        logAndReturnError(ctx, logger, "MessageStructure must be json")
+        return@route
+    }
+
     if (message == null) {
-        val errorMessage = "Message is missing. Message: $message"
+        val errorMessage = "Message is missing"
         logAndReturnError(ctx, logger, errorMessage)
         return@route
     }
