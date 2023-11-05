@@ -6,6 +6,7 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
+import io.vertx.core.json.Json
 import io.vertx.ext.web.Router
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
@@ -27,6 +28,7 @@ import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest
 import software.amazon.awssdk.services.sqs.model.Message
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse
+import java.io.Serializable
 import java.net.URI
 
 @ExtendWith(VertxExtension::class)
@@ -86,9 +88,6 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         subscribe(topic.arn, createEndpoint("queue1"), "sqs")
         val message = "Hello, SNS!"
-        val request = publishRequest(topic, message)
-
-        snsClient.publish(request)
 
         val queueUrl = "http://localhost:9324/000000000000/queue1"
         startReceivingMessages(queueUrl) { response ->
@@ -99,6 +98,9 @@ class PublishRouteIntegrationTest: BaseTest() {
             }
             testContext.completeNow()
         }
+
+        val request = publishRequest(topic, message)
+        snsClient.publish(request)
     }
 
     @Test
@@ -179,7 +181,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
-    fun `it can publish to multiple endpoints`(testContext: VertxTestContext) {
+    fun `it can publish to multiple subscriptions`(testContext: VertxTestContext) {
         val message = "Hello, SNS!"
         router.post("/testEndpoint1").handler { routingContext ->
             val request = routingContext.request()
@@ -239,6 +241,33 @@ class PublishRouteIntegrationTest: BaseTest() {
         snsClient.publish(request)
     }
 
+    @Test
+    fun `it can publish using MessageStructure`(vertx: Vertx, testContext: VertxTestContext) {
+        data class Message(val default: String, val http:String): Serializable
+        data class JsonMessage(val key:String):Serializable
+        val httpMessage = Json.encode(JsonMessage("hello http"))
+        val message = Message("default message", httpMessage)
+
+        // Define a POST route
+        router.post("/testEndpoint").handler { routingContext ->
+            val request = routingContext.request()
+            request.bodyHandler { body ->
+                val requestBody = body.toString("UTF-8")
+                assertEquals(httpMessage, requestBody)
+                testContext.completeNow()
+            }
+
+            val response = routingContext.response()
+            response.setStatusCode(200).end("POST Request Received")
+        }
+
+        val topic = createTopicModel("topic1")
+        subscribe(topic.arn, createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"), "http")
+
+        val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
+        snsClient.publish(request)
+    }
+
     private fun messageHasAttribute(message: Message, key: String, value: String) =
         message.messageAttributes()[key]!!.stringValue() == value
 
@@ -262,6 +291,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         message: String,
         messageAttributes: Map<String, String> = mapOf(),
         useTargetArn:Boolean = false,
+        messageStructure: String? = null,
     ): PublishRequest? {
         val attributes =
             messageAttributes.map { it.key to MessageAttributeValue.builder().stringValue(it.value).build() }.toMap()
@@ -273,6 +303,9 @@ class PublishRouteIntegrationTest: BaseTest() {
                     topicArn(topic.arn)
                 }
                 message(message)
+                if (messageStructure != null) {
+                    messageStructure(messageStructure)
+                }
                 messageAttributes(attributes)
             }.build()
 

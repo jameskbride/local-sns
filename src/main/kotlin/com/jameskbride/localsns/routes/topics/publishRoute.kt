@@ -27,7 +27,8 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val vertx = ctx.vertx()
 
     if (topicArn == null) {
-        val errorMessage = "Either TopicArn or TargetArn is required. TopicArn: $topicArnFormAttribute, TargetArn: $targetArnFormAttribute"
+        val errorMessage =
+            "Either TopicArn or TargetArn is required. TopicArn: $topicArnFormAttribute, TargetArn: $targetArnFormAttribute"
         logAndReturnError(ctx, logger, errorMessage)
         return@route
     }
@@ -76,7 +77,12 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     camelContext.start()
     subscriptions.forEach { subscription ->
         try {
-            publishMessage(producerTemplate, subscription, messages["default"]!!, messageAttributes, logger)
+            val messageToPublish = if (messages.containsKey(subscription.protocol)) {
+                messages[subscription.protocol]
+            } else {
+                messages["default"]
+            }
+            publishMessage(producerTemplate, subscription, messageToPublish!!, messageAttributes, logger)
         } catch (e: Exception) {
             logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
         }
