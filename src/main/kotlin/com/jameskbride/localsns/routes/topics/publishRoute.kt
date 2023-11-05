@@ -1,7 +1,7 @@
 package com.jameskbride.localsns.routes.topics
 
-import com.google.gson.annotations.SerializedName
 import com.jameskbride.localsns.*
+import com.jameskbride.localsns.models.Message
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
@@ -55,16 +55,10 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     } else if (messageStructure != null) {
         try {
-            data class Message(
-                val default: String,
-                val http: String? = null,
-                val https: String? = null,
-                val file: String? = null,
-                val slack: String? = null,
-                @SerializedName("aws-sqs") val awsSqs: String? = null,
-                @SerializedName("aws2-lambda") val awsLambda: String? = null,
-                @SerializedName("rabbitmq") val rabbitMq: String? = null)
-            Json.decodeValue(message, Message::class.java)
+            val messages = Json.decodeValue(message, Message::class.java)
+            if (messages.sms != null || messages.application != null || messages.email != null || messages.emailJson != null) {
+                logger.warn("Unsupported protocol found. Must be one of: http, https, file, slack, sqs, lambda, rabbitmq")
+            }
         } catch (ex: Exception) {
             logAndReturnError(ctx, logger, "Message must be valid JSON")
             return@route
