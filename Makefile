@@ -1,8 +1,5 @@
 DB_PATH := ./db.json
 
-VERSION := $(shell grep -o '^version=\K[0-9.]*' gradle.properties)
-JAR := local-sns-$(VERSION).jar
-
 TAG = dev
 
 run-dev:
@@ -16,4 +13,4 @@ build-image:
 	docker build --build-arg JAR=$(JAR) --tag jameskbride/local-sns:$(TAG) .
 
 publish: build
-	docker buildx build --platform=linux/arm64 --build-arg JAR=$(JAR) -t jameskbride/local-sns:$(TAG) -f Dockerfile . --push
+	docker buildx build --platform=linux/arm64,linux/amd64 --build-arg JAR=$(JAR) -t jameskbride/local-sns:$(TAG) -f Dockerfile . --push
