@@ -1,5 +1,7 @@
 package com.jameskbride.localsns.routes.topics
 
+import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Subscription
@@ -7,12 +9,16 @@ import com.jameskbride.localsns.models.Topic
 import io.vertx.core.json.Json
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
+import io.vertx.kotlin.core.eventbus.eventBusOptionsOf
 import io.vertx.kotlin.core.json.get
 import org.apache.camel.ProducerTemplate
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.net.URLDecoder
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.regex.Pattern
 
@@ -114,7 +120,7 @@ private fun publishJsonStructure(
                     messages["default"]
                 }
                 logger.info("Messages to publish: $messageToPublish")
-                publishMessage(producerTemplate, subscription, Json.encode(messageToPublish), messageAttributes)
+                publishMessage(producerTemplate, subscription, Json.encode(messageToPublish), logger, messageAttributes)
             } catch (e: Exception) {
                 logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
             }
@@ -137,7 +143,7 @@ private fun publishBasicMessage(
     subscriptions.forEach { subscription ->
         try {
             logger.info("Message to publish: $message")
-            publishMessage(producerTemplate, subscription, message, messageAttributes)
+            publishMessage(producerTemplate, subscription, message, logger, messageAttributes)
         } catch (e: Exception) {
             logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
         }
@@ -152,6 +158,7 @@ private fun publishMessage(
     producer: ProducerTemplate,
     subscription: Subscription,
     message: String,
+    logger: Logger,
     messageAttributes: Map<String, String>
 ) {
     val decodedUrl = URLDecoder.decode(subscription.endpoint, "UTF-8")
@@ -162,6 +169,53 @@ private fun publishMessage(
                 "x-amz-sns-subscription-arn" to subscription.arn,
                 "x-amz-sns-topic-arn" to subscription.topicArn
             )
-    producer.asyncRequestBodyAndHeaders(decodedUrl, message, headers)
+
+    data class LambdaSnsMessage(
+        @SerializedName("Message") val message:String,
+        @SerializedName("MessageId") val messageId:String,
+        @SerializedName("Signature") val signature:String,
+        @SerializedName("SignatureVersion") val signatureVersion: Int,
+        @SerializedName("SigningCertUrl") val signingCertUrl:String,
+        @SerializedName("Subject") val subject: String? = null,
+        @SerializedName("Timestamp") val timestamp: String,
+        @SerializedName("TopicArn") val topicArn: String,
+        @SerializedName("Type") val type: String = "Notification",
+        @SerializedName("UnsubscribeUrl") val unsubscribeUrl: String? = null,
+    )
+    data class LambdaRecord(
+        @SerializedName("EventSource") val eventSource:String,
+        @SerializedName("EventSubscriptionArn") val eventSubscriptionArn:String,
+        @SerializedName("EventVersion") val eventVersion:Double,
+        @SerializedName("Message") val message: LambdaSnsMessage,
+    )
+    data class LambdaEvent(
+        @SerializedName("Records") val records:List<LambdaRecord> = listOf()
+    )
+    val messageToPublish = when (subscription.protocol) {
+        "lambda" -> {
+            val timestamp = LocalDateTime.now()
+            val formattedTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(timestamp)
+            val snsMessage = LambdaSnsMessage(
+                message,
+                UUID.randomUUID().toString(),
+                "SIGNATURE",
+                1,
+                "http://signing-cert-url",
+                null,
+                formattedTimestamp,
+                subscription.topicArn,
+                )
+            val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
+            val event = LambdaEvent(listOf(record))
+            val gson = Gson()
+            gson.toJson(event)
+        }
+        else -> {
+            message
+        }
+    }
+
+    logger.info("Publishing to lambda: $messageToPublish")
+    producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers)
         .exceptionally { it.printStackTrace() }
 }
