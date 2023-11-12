@@ -1,15 +1,11 @@
 package com.jameskbride.localsns.routes.topics
 
 import com.google.gson.Gson
-import com.google.gson.annotations.SerializedName
 import com.jameskbride.localsns.*
-import com.jameskbride.localsns.models.MessageAttribute
-import com.jameskbride.localsns.models.Subscription
-import com.jameskbride.localsns.models.Topic
+import com.jameskbride.localsns.models.*
 import io.vertx.core.json.Json
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
-import io.vertx.kotlin.core.eventbus.eventBusOptionsOf
 import io.vertx.kotlin.core.json.get
 import org.apache.camel.ProducerTemplate
 import org.apache.camel.impl.DefaultCamelContext
@@ -17,7 +13,6 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.net.URLDecoder
 import java.time.LocalDateTime
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.regex.Pattern
@@ -170,27 +165,6 @@ private fun publishMessage(
                 "x-amz-sns-topic-arn" to subscription.topicArn
             )
 
-    data class LambdaSnsMessage(
-        @SerializedName("Message") val message:String,
-        @SerializedName("MessageId") val messageId:String,
-        @SerializedName("Signature") val signature:String,
-        @SerializedName("SignatureVersion") val signatureVersion: Int,
-        @SerializedName("SigningCertUrl") val signingCertUrl:String,
-        @SerializedName("Subject") val subject: String? = null,
-        @SerializedName("Timestamp") val timestamp: String,
-        @SerializedName("TopicArn") val topicArn: String,
-        @SerializedName("Type") val type: String = "Notification",
-        @SerializedName("UnsubscribeUrl") val unsubscribeUrl: String? = null,
-    )
-    data class LambdaRecord(
-        @SerializedName("EventSource") val eventSource:String,
-        @SerializedName("EventSubscriptionArn") val eventSubscriptionArn:String,
-        @SerializedName("EventVersion") val eventVersion:Double,
-        @SerializedName("Message") val message: LambdaSnsMessage,
-    )
-    data class LambdaEvent(
-        @SerializedName("Records") val records:List<LambdaRecord> = listOf()
-    )
     val messageToPublish = when (subscription.protocol) {
         "lambda" -> {
             val timestamp = LocalDateTime.now()
@@ -215,7 +189,6 @@ private fun publishMessage(
         }
     }
 
-    logger.info("Publishing to lambda: $messageToPublish")
     producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers)
         .exceptionally { it.printStackTrace() }
 }
