@@ -253,7 +253,7 @@ class PublishRouteIntegrationTest: BaseTest() {
             val request = routingContext.request()
             request.bodyHandler { body ->
                 val requestBody = body.toString("UTF-8")
-                assertEquals(httpMessage, requestBody)
+                assertEquals(httpMessage, Json.decodeValue(requestBody))
                 testContext.completeNow()
             }
 

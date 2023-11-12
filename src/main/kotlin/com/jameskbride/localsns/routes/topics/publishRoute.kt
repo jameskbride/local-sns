@@ -5,7 +5,9 @@ import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
 import io.vertx.core.json.Json
+import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
+import io.vertx.kotlin.core.json.get
 import org.apache.camel.ProducerTemplate
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
@@ -55,36 +57,19 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
-    var messages = mapOf("default" to message)
-    if (messageStructure != null) {
-        try {
-            messages = Json.decodeValue(message, HashMap::class.java) as Map<String, String>
-            if (messages["default"] == null) {
-                logAndReturnError(ctx, logger, "Attribute 'default' is required when MessageStructure is json.")
-                return@route
-            }
-        } catch (ex: Exception) {
-            logAndReturnError(ctx, logger, "Message must be valid JSON")
-            return@route
-        }
-    }
-
     val messageAttributes = MessageAttribute.parse(attributes).associate { it.name to it.value }
     val subscriptionsMap = getSubscriptionsMap(vertx)
     val subscriptions = subscriptionsMap!!.getOrDefault(topicArn, listOf())
     val camelContext = DefaultCamelContext()
     val producerTemplate = camelContext.createProducerTemplate()
     camelContext.start()
-    subscriptions.forEach { subscription ->
-        try {
-            val messageToPublish = if (messages.containsKey(subscription.protocol)) {
-                messages[subscription.protocol]
-            } else {
-                messages["default"]
-            }
-            publishMessage(producerTemplate, subscription, messageToPublish!!, messageAttributes, logger)
-        } catch (e: Exception) {
-            logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
+
+    when (messageStructure) {
+        "json" -> {
+            if (!publishJsonStructure(message, ctx, logger, subscriptions, producerTemplate, messageAttributes)) return@route
+        }
+        else -> {
+            publishBasicMessage(subscriptions, logger, message, producerTemplate, messageAttributes)
         }
     }
 
@@ -106,6 +91,59 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         )
 }
 
+private fun publishJsonStructure(
+    message: String?,
+    ctx: RoutingContext,
+    logger: Logger,
+    subscriptions: List<Subscription>,
+    producerTemplate: ProducerTemplate,
+    messageAttributes: Map<String, String>
+): Boolean {
+    try {
+        val messages = JsonObject(message)
+        if (messages.get<String?>("default") == null) {
+            logAndReturnError(ctx, logger, "Attribute 'default' is required when MessageStructure is json.")
+            return false
+        }
+
+        subscriptions.forEach { subscription ->
+            try {
+                val messageToPublish: Any = if (messages.containsKey(subscription.protocol)) {
+                    messages[subscription.protocol]
+                } else {
+                    messages["default"]
+                }
+                logger.info("Messages to publish: $messageToPublish")
+                publishMessage(producerTemplate, subscription, Json.encode(messageToPublish), messageAttributes)
+            } catch (e: Exception) {
+                logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
+            }
+        }
+    } catch (ex: Exception) {
+        ex.printStackTrace()
+        logAndReturnError(ctx, logger, "Message must be valid JSON")
+        return false
+    }
+    return true
+}
+
+private fun publishBasicMessage(
+    subscriptions: List<Subscription>,
+    logger: Logger,
+    message: String,
+    producerTemplate: ProducerTemplate,
+    messageAttributes: Map<String, String>
+) {
+    subscriptions.forEach { subscription ->
+        try {
+            logger.info("Message to publish: $message")
+            publishMessage(producerTemplate, subscription, message, messageAttributes)
+        } catch (e: Exception) {
+            logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
+        }
+    }
+}
+
 fun getTopicArn(topicArn: String?, targetArn: String?): String? {
     return topicArn ?: targetArn
 }
@@ -114,8 +152,7 @@ private fun publishMessage(
     producer: ProducerTemplate,
     subscription: Subscription,
     message: String,
-    messageAttributes: Map<String, String>,
-    logger: Logger
+    messageAttributes: Map<String, String>
 ) {
     val decodedUrl = URLDecoder.decode(subscription.endpoint, "UTF-8")
     val headers = messageAttributes.map { it.key to it.value }.toMap() +
@@ -125,7 +162,6 @@ private fun publishMessage(
                 "x-amz-sns-subscription-arn" to subscription.arn,
                 "x-amz-sns-topic-arn" to subscription.topicArn
             )
-    logger.debug("Publishing message to $decodedUrl: $message, with headers: $headers")
     producer.asyncRequestBodyAndHeaders(decodedUrl, message, headers)
         .exceptionally { it.printStackTrace() }
 }
