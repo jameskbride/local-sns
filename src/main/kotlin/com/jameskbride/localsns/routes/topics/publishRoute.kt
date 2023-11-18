@@ -3,7 +3,6 @@ package com.jameskbride.localsns.routes.topics
 import com.google.gson.Gson
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.*
-import io.vertx.core.json.Json
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.get
@@ -115,7 +114,7 @@ private fun publishJsonStructure(
                     messages["default"]
                 }
                 logger.info("Messages to publish: $messageToPublish")
-                publishMessage(producerTemplate, subscription, Json.encode(messageToPublish), logger, messageAttributes)
+                publishMessage(producerTemplate, subscription, messageToPublish as String, logger, messageAttributes)
             } catch (e: Exception) {
                 logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
             }
@@ -164,31 +163,39 @@ private fun publishMessage(
                 "x-amz-sns-subscription-arn" to subscription.arn,
                 "x-amz-sns-topic-arn" to subscription.topicArn
             )
-
-    val messageToPublish = when (subscription.protocol) {
+    val timestamp = LocalDateTime.now()
+    val snsMessage = createSnsMessage(timestamp, message, subscription)
+    val gson = Gson()
+    when (subscription.protocol) {
         "lambda" -> {
-            val timestamp = LocalDateTime.now()
-            val formattedTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(timestamp)
-            val snsMessage = LambdaSnsMessage(
-                message,
-                UUID.randomUUID().toString(),
-                "SIGNATURE",
-                1,
-                "http://signing-cert-url",
-                null,
-                formattedTimestamp,
-                subscription.topicArn,
-                )
             val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
             val event = LambdaEvent(listOf(record))
-            val gson = Gson()
-            gson.toJson(event)
+            val messageToPublish = gson.toJson(event)
+            producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers + mapOf("Content-Type" to "application/json"))
+                .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
         }
         else -> {
-            message
+            val messageToPublish = gson.toJson(snsMessage)
+            producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers)
+                .exceptionally { logger.error("Error publishing message $messageToPublish, to subscription: $subscription", it) }
         }
     }
+}
 
-    producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers)
-        .exceptionally { it.printStackTrace() }
+private fun createSnsMessage(
+    timestamp: LocalDateTime?,
+    message: String,
+    subscription: Subscription
+): SnsMessage {
+    val formattedTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(timestamp)
+    return SnsMessage(
+        message,
+        UUID.randomUUID().toString(),
+        "SIGNATURE",
+        1,
+        "http://signing-cert-url",
+        null,
+        formattedTimestamp,
+        subscription.topicArn,
+    )
 }

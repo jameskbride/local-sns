@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
 import io.vertx.core.json.Json
+import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
@@ -92,7 +93,11 @@ class PublishRouteIntegrationTest: BaseTest() {
         val queueUrl = "http://localhost:9324/000000000000/queue1"
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
-            assertTrue(messages.any { it.body() == message })
+            assertTrue(messages.any {
+                val requestBody = it.body()
+                val jsonBody = JsonObject(requestBody)
+                message == jsonBody.getString("Message")
+            })
             messages.forEach {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
             }
@@ -115,7 +120,10 @@ class PublishRouteIntegrationTest: BaseTest() {
         val queueUrl = "http://localhost:9324/000000000000/queue2"
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
-            assertTrue(messages.any { it.body() == message })
+            assertTrue(messages.any {
+                val jsonBody = JsonObject(it.body())
+                jsonBody.getString("Message") == message
+            })
             messages.forEach {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
             }
@@ -141,8 +149,8 @@ class PublishRouteIntegrationTest: BaseTest() {
         startReceivingMessages(queueUrl, messageAttributes.keys) { response ->
             val messages = response.messages()
             if (messages.any {
-                it.body().equals(message)
-                        &&
+                    val jsonBody = JsonObject(it.body())
+                    jsonBody.getString("Message") == message &&
                         messageHasAttribute(it, "first", "firstValue") &&
                         messageHasAttribute(it, "second", "secondValue")
             }) {
@@ -164,7 +172,8 @@ class PublishRouteIntegrationTest: BaseTest() {
             val request = routingContext.request()
             request.bodyHandler { body ->
                 val requestBody = body.toString("UTF-8")
-                assertEquals(message, requestBody)
+                val jsonBody = JsonObject(requestBody)
+                assertEquals(message, jsonBody.getString("Message"))
                 testContext.completeNow()
             }
 
@@ -187,7 +196,8 @@ class PublishRouteIntegrationTest: BaseTest() {
             val request = routingContext.request()
             request.bodyHandler { body ->
                 val requestBody = body.toString("UTF-8")
-                assertEquals(message, requestBody)
+                val jsonBody = JsonObject(requestBody)
+                assertEquals(message, jsonBody.getString("Message"))
                 testContext.checkpoint()
             }
 
@@ -199,7 +209,8 @@ class PublishRouteIntegrationTest: BaseTest() {
             val request = routingContext.request()
             request.bodyHandler { body ->
                 val requestBody = body.toString("UTF-8")
-                assertEquals(message, requestBody)
+                val jsonBody = JsonObject(requestBody)
+                assertEquals(message, jsonBody.getString("Message"))
                 testContext.completeNow()
             }
 
@@ -224,7 +235,8 @@ class PublishRouteIntegrationTest: BaseTest() {
             val request = routingContext.request()
             request.bodyHandler { body ->
                 val requestBody = body.toString("UTF-8")
-                assertEquals(message, requestBody)
+                val jsonBody = JsonObject(requestBody)
+                assertEquals(message, jsonBody.getString("Message"))
                 testContext.completeNow()
             }
 
@@ -253,7 +265,8 @@ class PublishRouteIntegrationTest: BaseTest() {
             val request = routingContext.request()
             request.bodyHandler { body ->
                 val requestBody = body.toString("UTF-8")
-                assertEquals(httpMessage, Json.decodeValue(requestBody))
+                val jsonBody = JsonObject(requestBody)
+                assertEquals(message.http, jsonBody.getString("Message"))
                 testContext.completeNow()
             }
 
