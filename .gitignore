@@ -166,4 +166,5 @@ nbdist/
 !.vscode/extensions.json
 
 db.json
+!example/config/db.json
 example/config/logs
