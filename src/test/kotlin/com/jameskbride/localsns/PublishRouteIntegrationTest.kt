@@ -25,12 +25,19 @@ import software.amazon.awssdk.services.sns.SnsClient
 import software.amazon.awssdk.services.sns.model.MessageAttributeValue
 import software.amazon.awssdk.services.sns.model.PublishRequest
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
+import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest
 import software.amazon.awssdk.services.sqs.model.Message
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse
 import java.io.Serializable
 import java.net.URI
+
+private const val ELASTIC_MQ_SERVER_URL = "http://localhost:9324/000000000000"
+
+fun createQueueUrl(queueName: String): String {
+    return "$ELASTIC_MQ_SERVER_URL/$queueName"
+}
 
 @ExtendWith(VertxExtension::class)
 class PublishRouteIntegrationTest: BaseTest() {
@@ -46,6 +53,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         private lateinit var httpServer: HttpServer
         private lateinit var server: ElasticMQServer
         private lateinit var sqsClient: SqsAsyncClient
+        private lateinit var sqsSyncClient: SqsClient
         private lateinit var snsClient: SnsClient
         private lateinit var credentials: AwsBasicCredentials
         private lateinit var config: Config
@@ -62,6 +70,12 @@ class PublishRouteIntegrationTest: BaseTest() {
                 .build()
 
             sqsClient = SqsAsyncClient.builder()
+                .region(Region.US_EAST_1)
+                .credentialsProvider { credentials }
+                .endpointOverride(URI.create("http://localhost:9324"))
+                .build()
+
+            sqsSyncClient = SqsClient.builder()
                 .region(Region.US_EAST_1)
                 .credentialsProvider { credentials }
                 .endpointOverride(URI.create("http://localhost:9324"))
@@ -87,10 +101,12 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish messages to sqs`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue1"), "sqs")
+        val queueName = "standard-publish"
+        createQueue(queueName)
+        subscribe(topic.arn, createEndpoint(queueName), "sqs")
         val message = "Hello, SNS!"
 
-        val queueUrl = "http://localhost:9324/000000000000/queue1"
+        val queueUrl = createQueueUrl(queueName)
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
             assertTrue(messages.any {
@@ -111,10 +127,12 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish raw messages to sqs`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue1"), "sqs", mapOf("RawMessageDelivery" to "true"))
+        val queueName = "raw-queue"
+        createQueue(queueName)
+        subscribe(topic.arn, createEndpoint(queueName), "sqs", mapOf("RawMessageDelivery" to "true"))
         val message = "Hello, SNS!"
 
-        val queueUrl = "http://localhost:9324/000000000000/queue1"
+        val queueUrl = createQueueUrl(queueName)
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
             assertTrue(messages.any {
@@ -133,13 +151,15 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish using the TargetArn`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue2"), "sqs")
+        val queueName = "target-arn-queue"
+        createQueue(queueName)
+        subscribe(topic.arn, createEndpoint(queueName), "sqs")
         val message = "Hello, SNS!"
         val request = publishRequest(topic, message, useTargetArn = true)
 
         snsClient.publish(request)
 
-        val queueUrl = "http://localhost:9324/000000000000/queue2"
+        val queueUrl = createQueueUrl(queueName)
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
             assertTrue(messages.any {
@@ -156,7 +176,9 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish with message attributes`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue1"), "sqs")
+        val queueName = "with-attributes"
+        createQueue(queueName)
+        subscribe(topic.arn, createEndpoint(queueName), "sqs")
         val message = "Hello, SNS!"
         val messageAttributes = mapOf(
             "first" to "firstValue",
@@ -167,7 +189,7 @@ class PublishRouteIntegrationTest: BaseTest() {
 
         snsClient.publish(request)
 
-        val queueUrl = "http://localhost:9324/000000000000/queue1"
+        val queueUrl = "$ELASTIC_MQ_SERVER_URL/with-attributes"
         startReceivingMessages(queueUrl, messageAttributes.keys) { response ->
             val messages = response.messages()
             if (messages.any {
@@ -183,6 +205,13 @@ class PublishRouteIntegrationTest: BaseTest() {
             messages.forEach {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
             }
+        }
+    }
+
+    private fun createQueue(queueName: String) {
+        sqsSyncClient.createQueue {
+            it.queueName(queueName)
+            it.build()
         }
     }
 
