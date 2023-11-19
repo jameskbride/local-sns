@@ -190,7 +190,7 @@ class PublishRouteIntegrationTest: BaseTest() {
 
         snsClient.publish(request)
 
-        val queueUrl = "$ELASTIC_MQ_SERVER_URL/with-attributes"
+        val queueUrl = createQueueUrl("with-attributes")
         startReceivingMessages(queueUrl, messageAttributes.keys) { response ->
             val messages = response.messages()
             if (messages.any {
@@ -207,6 +207,10 @@ class PublishRouteIntegrationTest: BaseTest() {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
             }
         }
+    }
+
+    private fun createQueueUrl(queueName: String): String {
+        return "$ELASTIC_MQ_SERVER_URL/$queueName"
     }
 
     private fun createQueue(queueName: String): String {
@@ -395,6 +399,42 @@ class PublishRouteIntegrationTest: BaseTest() {
 
         val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
         snsClient.publish(request)
+    }
+
+    @Test
+    fun `it can publish raw sqs messages using MessageStructure`(vertx: Vertx, testContext: VertxTestContext) {
+        data class Message(val default: String, val sqs:String): Serializable
+        data class JsonMessage(val key:String):Serializable
+        val jsonMessage = Json.encode(JsonMessage("hello sqs"))
+        val message = Message("default message", jsonMessage)
+
+        val queueName = "raw-message-structure-sqs"
+        val endpoint = createQueue(queueName)
+        val topic = createTopicModel("topic1")
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf("RawMessageDelivery" to "true")
+        )
+
+        val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages()
+            if (messages.any {
+                    jsonMessage == message.sqs
+                }) {
+                testContext.completeNow()
+            } else {
+                testContext.failNow("Message not found")
+            }
+            messages.forEach {
+                sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
+            }
+        }
     }
 
     private fun messageHasAttribute(message: Message, key: String, value: String) =
