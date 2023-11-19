@@ -171,13 +171,15 @@ private fun publishMessage(
         "https" -> {
             publishToHttp(subscription, headers, message, producer, logger)
         }
+        "slack" -> {
+            publishToSlack(producer, subscription, message, headers, logger)
+        }
         else -> {
             val timestamp = LocalDateTime.now()
             val snsMessage = createSnsMessage(timestamp, message, subscription)
             val gson = Gson()
             val messageToPublish = gson.toJson(snsMessage)
-            producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), messageToPublish, headers)
-                .exceptionally { logger.error("Error publishing message $messageToPublish, to subscription: $subscription", it) }
+            publishMessage(producer, subscription, messageToPublish, headers, logger)
         }
     }
 }
@@ -226,13 +228,28 @@ private fun publishToHttp(
         gson.toJson(snsMessage)
     }
 
-    producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), messageToPublish, httpHeaders)
-        .exceptionally {
-            logger.error(
-                "Error publishing message $messageToPublish, to subscription: $subscription",
-                it
-            )
-        }
+    publishMessage(producer, subscription, messageToPublish, httpHeaders, logger)
+}
+
+private fun publishToSlack(
+    producer: ProducerTemplate,
+    subscription: Subscription,
+    message: String,
+    headers: Map<String, String>,
+    logger: Logger
+) {
+    publishMessage(producer, subscription, message, headers, logger)
+}
+
+private fun publishMessage(
+    producer: ProducerTemplate,
+    subscription: Subscription,
+    message: String,
+    headers: Map<String, String>,
+    logger: Logger
+) {
+    producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), message, headers)
+        .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
 }
 
 private fun createSnsMessage(
