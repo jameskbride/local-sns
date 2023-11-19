@@ -10,7 +10,6 @@ import org.apache.camel.ProducerTemplate
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-import java.net.URLDecoder
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -155,7 +154,6 @@ private fun publishMessage(
     logger: Logger,
     messageAttributes: Map<String, String>
 ) {
-    val decodedUrl = URLDecoder.decode(subscription.endpoint, "UTF-8")
     val headers = messageAttributes.map { it.key to it.value }.toMap() +
             mapOf(
                 "x-amz-sns-message-type" to "Notification",
@@ -163,38 +161,75 @@ private fun publishMessage(
                 "x-amz-sns-subscription-arn" to subscription.arn,
                 "x-amz-sns-topic-arn" to subscription.topicArn
             )
-    val timestamp = LocalDateTime.now()
-    val snsMessage = createSnsMessage(timestamp, message, subscription)
-    val gson = Gson()
     when (subscription.protocol) {
         "lambda" -> {
-            val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
-            val event = LambdaEvent(listOf(record))
-            val messageToPublish = gson.toJson(event)
-            producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers + mapOf("Content-Type" to "application/json"))
-                .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
+            publishToLambda(subscription, producer, headers, logger, message)
         }
         "http" -> {
-            val isRawMessageDelivery = subscription.subscriptionAttributes["RawMessageDelivery"] == "true"
-            val httpHeaders = if (isRawMessageDelivery) {
-                headers + mapOf("x-amz-sns-rawdelivery" to "true")
-            } else { headers }
-
-            val messageToPublish = if (isRawMessageDelivery) {
-                message
-            } else {
-                 gson.toJson(snsMessage)
-            }
-
-            producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, httpHeaders)
-                .exceptionally { logger.error("Error publishing message $messageToPublish, to subscription: $subscription", it) }
+            publishToHttp(subscription, headers, message, producer, logger)
         }
         else -> {
+            val timestamp = LocalDateTime.now()
+            val snsMessage = createSnsMessage(timestamp, message, subscription)
+            val gson = Gson()
             val messageToPublish = gson.toJson(snsMessage)
-            producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers)
+            producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), messageToPublish, headers)
                 .exceptionally { logger.error("Error publishing message $messageToPublish, to subscription: $subscription", it) }
         }
     }
+}
+
+private fun publishToLambda(
+    subscription: Subscription,
+    producer: ProducerTemplate,
+    headers: Map<String, String>,
+    logger: Logger,
+    message: String
+) {
+    val timestamp = LocalDateTime.now()
+    val snsMessage = createSnsMessage(timestamp, message, subscription)
+    val gson = Gson()
+    val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
+    val event = LambdaEvent(listOf(record))
+    val messageToPublish = gson.toJson(event)
+    producer.asyncRequestBodyAndHeaders(
+        subscription.decodedEndpointUrl(),
+        messageToPublish,
+        headers + mapOf("Content-Type" to "application/json")
+    )
+        .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
+}
+
+private fun publishToHttp(
+    subscription: Subscription,
+    headers: Map<String, String>,
+    message: String,
+    producer: ProducerTemplate,
+    logger: Logger
+) {
+    val timestamp = LocalDateTime.now()
+    val snsMessage = createSnsMessage(timestamp, message, subscription)
+    val gson = Gson()
+    val isRawMessageDelivery = subscription.subscriptionAttributes["RawMessageDelivery"] == "true"
+    val httpHeaders = if (isRawMessageDelivery) {
+        headers + mapOf("x-amz-sns-rawdelivery" to "true")
+    } else {
+        headers
+    }
+
+    val messageToPublish = if (isRawMessageDelivery) {
+        message
+    } else {
+        gson.toJson(snsMessage)
+    }
+
+    producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), messageToPublish, httpHeaders)
+        .exceptionally {
+            logger.error(
+                "Error publishing message $messageToPublish, to subscription: $subscription",
+                it
+            )
+        }
 }
 
 private fun createSnsMessage(
