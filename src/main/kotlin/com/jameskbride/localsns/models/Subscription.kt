@@ -17,7 +17,11 @@ data class Subscription(
     val arnPattern = """([\w+_:-]{1,512})"""
   }
 
-  fun decodedEndpointUrl():String {
+  @JsonIgnore fun decodedEndpointUrl():String {
     return URLDecoder.decode(endpoint, "UTF-8")
+  }
+
+  @JsonIgnore fun isRawMessageDelivery(): Boolean {
+    return subscriptionAttributes.getOrDefault("RawMessageDelivery", "false") == "true"
   }
 }

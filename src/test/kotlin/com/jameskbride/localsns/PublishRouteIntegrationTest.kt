@@ -109,6 +109,28 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
+    fun `it can publish raw messages to sqs`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        subscribe(topic.arn, createEndpoint("queue1"), "sqs", mapOf("RawMessageDelivery" to "true"))
+        val message = "Hello, SNS!"
+
+        val queueUrl = "http://localhost:9324/000000000000/queue1"
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages()
+            assertTrue(messages.any {
+                message == it.body()
+            })
+            messages.forEach {
+                sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
+            }
+            testContext.completeNow()
+        }
+
+        val request = publishRequest(topic, message)
+        snsClient.publish(request)
+    }
+
+    @Test
     fun `it can publish using the TargetArn`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         subscribe(topic.arn, createEndpoint("queue2"), "sqs")

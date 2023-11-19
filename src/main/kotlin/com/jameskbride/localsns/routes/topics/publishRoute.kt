@@ -113,7 +113,7 @@ private fun publishJsonStructure(
                     messages["default"]
                 }
                 logger.info("Messages to publish: $messageToPublish")
-                publishMessage(producerTemplate, subscription, messageToPublish as String, logger, messageAttributes)
+                publishMessage(subscription, messageToPublish as String, messageAttributes, producerTemplate, logger)
             } catch (e: Exception) {
                 logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
             }
@@ -136,7 +136,7 @@ private fun publishBasicMessage(
     subscriptions.forEach { subscription ->
         try {
             logger.info("Message to publish: $message")
-            publishMessage(producerTemplate, subscription, message, logger, messageAttributes)
+            publishMessage(subscription, message, messageAttributes, producerTemplate, logger)
         } catch (e: Exception) {
             logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
         }
@@ -148,11 +148,11 @@ fun getTopicArn(topicArn: String?, targetArn: String?): String? {
 }
 
 private fun publishMessage(
-    producer: ProducerTemplate,
     subscription: Subscription,
     message: String,
-    logger: Logger,
-    messageAttributes: Map<String, String>
+    messageAttributes: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
 ) {
     val headers = messageAttributes.map { it.key to it.value }.toMap() +
             mapOf(
@@ -163,36 +163,58 @@ private fun publishMessage(
             )
     when (subscription.protocol) {
         "lambda" -> {
-            publishToLambda(subscription, producer, headers, logger, message)
+            publishToLambda(subscription, message, headers, producer, logger)
         }
         "http" -> {
-            publishToHttp(subscription, headers, message, producer, logger)
+            publishToHttp(subscription, message, headers, producer, logger)
         }
         "https" -> {
-            publishToHttp(subscription, headers, message, producer, logger)
+            publishToHttp(subscription, message, headers, producer, logger)
         }
         "slack" -> {
-            publishToSlack(producer, subscription, message, headers, logger)
+            publishToSlack(subscription, message, headers, producer, logger)
+        }
+        "sqs" -> {
+            publishToSqs(subscription, message, headers, producer, logger)
         }
         else -> {
             val timestamp = LocalDateTime.now()
-            val snsMessage = createSnsMessage(timestamp, message, subscription)
+            val snsMessage = createSnsMessage(subscription, message, timestamp)
             val gson = Gson()
             val messageToPublish = gson.toJson(snsMessage)
-            publishMessage(producer, subscription, messageToPublish, headers, logger)
+            publish(subscription, messageToPublish, headers, producer, logger)
         }
     }
 }
 
+private fun publishToSqs(
+    subscription: Subscription,
+    message: String,
+    headers: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
+) {
+    val messageToPublish = if (subscription.isRawMessageDelivery()) {
+        message
+    } else {
+        val timestamp = LocalDateTime.now()
+        val snsMessage = createSnsMessage(subscription, message, timestamp)
+        val gson = Gson()
+        gson.toJson(snsMessage)
+    }
+
+    publish(subscription, messageToPublish, headers, producer, logger)
+}
+
 private fun publishToLambda(
     subscription: Subscription,
-    producer: ProducerTemplate,
+    message: String,
     headers: Map<String, String>,
-    logger: Logger,
-    message: String
+    producer: ProducerTemplate,
+    logger: Logger
 ) {
     val timestamp = LocalDateTime.now()
-    val snsMessage = createSnsMessage(timestamp, message, subscription)
+    val snsMessage = createSnsMessage(subscription, message, timestamp)
     val gson = Gson()
     val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
     val event = LambdaEvent(listOf(record))
@@ -207,45 +229,44 @@ private fun publishToLambda(
 
 private fun publishToHttp(
     subscription: Subscription,
-    headers: Map<String, String>,
     message: String,
+    headers: Map<String, String>,
     producer: ProducerTemplate,
     logger: Logger
 ) {
     val timestamp = LocalDateTime.now()
-    val snsMessage = createSnsMessage(timestamp, message, subscription)
+    val snsMessage = createSnsMessage(subscription, message, timestamp)
     val gson = Gson()
-    val isRawMessageDelivery = subscription.subscriptionAttributes["RawMessageDelivery"] == "true"
-    val httpHeaders = if (isRawMessageDelivery) {
+    val httpHeaders = if (subscription.isRawMessageDelivery()) {
         headers + mapOf("x-amz-sns-rawdelivery" to "true")
     } else {
         headers
     }
 
-    val messageToPublish = if (isRawMessageDelivery) {
+    val messageToPublish = if (subscription.isRawMessageDelivery()) {
         message
     } else {
         gson.toJson(snsMessage)
     }
 
-    publishMessage(producer, subscription, messageToPublish, httpHeaders, logger)
+    publish(subscription, messageToPublish, httpHeaders, producer, logger)
 }
 
 private fun publishToSlack(
-    producer: ProducerTemplate,
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
+    producer: ProducerTemplate,
     logger: Logger
 ) {
-    publishMessage(producer, subscription, message, headers, logger)
+    publish(subscription, message, headers, producer, logger)
 }
 
-private fun publishMessage(
-    producer: ProducerTemplate,
+private fun publish(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
+    producer: ProducerTemplate,
     logger: Logger
 ) {
     producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), message, headers)
@@ -253,9 +274,9 @@ private fun publishMessage(
 }
 
 private fun createSnsMessage(
-    timestamp: LocalDateTime?,
+    subscription: Subscription,
     message: String,
-    subscription: Subscription
+    timestamp: LocalDateTime?
 ): SnsMessage {
     val formattedTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(timestamp)
     return SnsMessage(
