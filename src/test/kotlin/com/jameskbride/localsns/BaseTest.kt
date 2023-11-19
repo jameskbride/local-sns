@@ -26,7 +26,7 @@ open class BaseTest {
     protected fun createValidArn(resourceName: String) =
         "arn:aws:sns:us-east-1:123456789012:${resourceName}"
 
-    fun createEndpoint(name: String): String {
+    fun createSqsEndpoint(name: String): String {
         return "aws2-sqs://$name?accessKey=xxx&secretKey=xxx&region=us-east-1&trustAllCertificates=true&overrideEndpoint=true&uriEndpointOverride=http://localhost:9324/000000000000/$name&messageAttributeNames=first,second"
     }
 

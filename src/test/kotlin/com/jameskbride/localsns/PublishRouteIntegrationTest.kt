@@ -103,7 +103,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "standard-publish"
         createQueue(queueName)
-        subscribe(topic.arn, createEndpoint(queueName), "sqs")
+        subscribe(topic.arn, createSqsEndpoint(queueName), "sqs")
         val message = "Hello, SNS!"
 
         val queueUrl = createQueueUrl(queueName)
@@ -129,7 +129,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "raw-queue"
         createQueue(queueName)
-        subscribe(topic.arn, createEndpoint(queueName), "sqs", mapOf("RawMessageDelivery" to "true"))
+        subscribe(topic.arn, createSqsEndpoint(queueName), "sqs", mapOf("RawMessageDelivery" to "true"))
         val message = "Hello, SNS!"
 
         val queueUrl = createQueueUrl(queueName)
@@ -153,7 +153,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "target-arn-queue"
         createQueue(queueName)
-        subscribe(topic.arn, createEndpoint(queueName), "sqs")
+        subscribe(topic.arn, createSqsEndpoint(queueName), "sqs")
         val message = "Hello, SNS!"
         val request = publishRequest(topic, message, useTargetArn = true)
 
@@ -178,7 +178,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "with-attributes"
         createQueue(queueName)
-        subscribe(topic.arn, createEndpoint(queueName), "sqs")
+        subscribe(topic.arn, createSqsEndpoint(queueName), "sqs")
         val message = "Hello, SNS!"
         val messageAttributes = mapOf(
             "first" to "firstValue",

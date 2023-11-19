@@ -20,7 +20,7 @@ class SubscribeRouteTest : BaseTest() {
 
     @Test
     fun `it returns an error when the topic arn is missing`(testContext: VertxTestContext) {
-        val response = subscribe(null, createEndpoint("queue1"), "sqs")
+        val response = subscribe(null, createSqsEndpoint("queue1"), "sqs")
         assertEquals(400, response.statusCode)
 
         testContext.completeNow()
@@ -31,7 +31,7 @@ class SubscribeRouteTest : BaseTest() {
         val topic = "topic1"
         val topicResponse = createTopic(topic)
         val topicArn = getTopicArnFromResponse(topicResponse)
-        val response = subscribe(topicArn, createEndpoint("queue1"), null)
+        val response = subscribe(topicArn, createSqsEndpoint("queue1"), null)
         assertEquals(400, response.statusCode)
 
         testContext.completeNow()
@@ -40,7 +40,7 @@ class SubscribeRouteTest : BaseTest() {
     @Test
     fun `it returns an error when topic arn is invalid`(testContext: VertxTestContext) {
         val topic = "bad topic"
-        val response = subscribe(topic, createEndpoint("queue1"), "sqs")
+        val response = subscribe(topic, createSqsEndpoint("queue1"), "sqs")
         assertEquals(400, response.statusCode)
 
         testContext.completeNow()
@@ -50,7 +50,7 @@ class SubscribeRouteTest : BaseTest() {
     fun `it returns an error when topic arn does not exist`(testContext: VertxTestContext) {
         val topic = "topic1"
         createTopic(topic)
-        val response = subscribe(createValidArn("doesnotexist"), createEndpoint("queue1"), "sqs")
+        val response = subscribe(createValidArn("doesnotexist"), createSqsEndpoint("queue1"), "sqs")
         assertEquals(400, response.statusCode)
 
         testContext.completeNow()
@@ -60,7 +60,7 @@ class SubscribeRouteTest : BaseTest() {
     fun `it can subscribe to a topic`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
 
-        val response = subscribe(topic.arn, createEndpoint("queue1"), "sqs")
+        val response = subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs")
 
         val subscriptionArn = getSubscriptionArnFromResponse(response)
         assertEquals(200, response.statusCode)
@@ -77,7 +77,7 @@ class SubscribeRouteTest : BaseTest() {
             testContext.completeNow()
         }
 
-        subscribe(topic.arn, createEndpoint("queue1"), "sqs")
+        subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs")
     }
 
     @Test
@@ -87,7 +87,7 @@ class SubscribeRouteTest : BaseTest() {
         )
         val topic = createTopicModel("topic1")
 
-        val response = subscribe(topic.arn, createEndpoint("queue1"), "sqs", messageAttributes)
+        val response = subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs", messageAttributes)
         val subscriptionArn = getSubscriptionArnFromResponse(response)
         assertEquals(200, response.statusCode)
         assertTrue(subscriptionArn.isNotEmpty())

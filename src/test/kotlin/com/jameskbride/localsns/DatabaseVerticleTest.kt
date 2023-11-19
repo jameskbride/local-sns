@@ -40,7 +40,7 @@ class DatabaseVerticleTest: BaseTest() {
             arn = createValidArn("subscription1"),
             owner="owner",
             protocol="sqs",
-            endpoint=createEndpoint("queue1")
+            endpoint=createSqsEndpoint("queue1")
         )
 
         val topics = getTopicsMap(vertx)!!
