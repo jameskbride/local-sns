@@ -365,6 +365,38 @@ class PublishRouteIntegrationTest: BaseTest() {
         snsClient.publish(request)
     }
 
+    @Test
+    fun `it can publish raw http messages using MessageStructure`(vertx: Vertx, testContext: VertxTestContext) {
+        data class Message(val default: String, val http:String): Serializable
+        data class JsonMessage(val key:String):Serializable
+        val httpMessage = Json.encode(JsonMessage("hello http"))
+        val message = Message("default message", httpMessage)
+
+        // Define a POST route
+        router.post("/testEndpoint").handler { routingContext ->
+            val request = routingContext.request()
+            request.bodyHandler { body ->
+                val requestBody = body.toString("UTF-8")
+                assertEquals(message.http, httpMessage)
+                testContext.completeNow()
+            }
+
+            val response = routingContext.response()
+            response.setStatusCode(200).end("POST Request Received")
+        }
+
+        val topic = createTopicModel("topic1")
+        subscribe(
+            topic.arn,
+            createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"),
+            "http",
+            mapOf("RawMessageDelivery" to "true")
+        )
+
+        val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
+        snsClient.publish(request)
+    }
+
     private fun messageHasAttribute(message: Message, key: String, value: String) =
         message.messageAttributes()[key]!!.stringValue() == value
 
