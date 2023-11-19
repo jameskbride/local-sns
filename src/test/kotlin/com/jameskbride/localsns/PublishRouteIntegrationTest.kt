@@ -102,8 +102,8 @@ class PublishRouteIntegrationTest: BaseTest() {
     fun `it can publish messages to sqs`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         val queueName = "standard-publish"
-        createQueue(queueName)
-        subscribe(topic.arn, createSqsEndpoint(queueName), "sqs")
+        val endpoint = createQueue(queueName)
+        subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
 
         val queueUrl = createQueueUrl(queueName)
@@ -128,8 +128,8 @@ class PublishRouteIntegrationTest: BaseTest() {
     fun `it can publish raw messages to sqs`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         val queueName = "raw-queue"
-        createQueue(queueName)
-        subscribe(topic.arn, createSqsEndpoint(queueName), "sqs", mapOf("RawMessageDelivery" to "true"))
+        val endpoint = createQueue(queueName)
+        subscribe(topic.arn, endpoint, "sqs", mapOf("RawMessageDelivery" to "true"))
         val message = "Hello, SNS!"
 
         val queueUrl = createQueueUrl(queueName)
@@ -153,7 +153,8 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "target-arn-queue"
         createQueue(queueName)
-        subscribe(topic.arn, createSqsEndpoint(queueName), "sqs")
+        val endpoint = createSqsEndpoint(queueName)
+        subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
         val request = publishRequest(topic, message, useTargetArn = true)
 
@@ -177,8 +178,8 @@ class PublishRouteIntegrationTest: BaseTest() {
     fun `it can publish with message attributes`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         val queueName = "with-attributes"
-        createQueue(queueName)
-        subscribe(topic.arn, createSqsEndpoint(queueName), "sqs")
+        val endpoint = createQueue(queueName)
+        subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
         val messageAttributes = mapOf(
             "first" to "firstValue",
@@ -208,11 +209,13 @@ class PublishRouteIntegrationTest: BaseTest() {
         }
     }
 
-    private fun createQueue(queueName: String) {
+    private fun createQueue(queueName: String): String {
         sqsSyncClient.createQueue {
             it.queueName(queueName)
             it.build()
         }
+
+        return createSqsEndpoint(queueName)
     }
 
     @Test
