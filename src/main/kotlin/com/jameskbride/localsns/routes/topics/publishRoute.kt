@@ -168,6 +168,9 @@ private fun publishMessage(
         "http" -> {
             publishToHttp(subscription, headers, message, producer, logger)
         }
+        "https" -> {
+            publishToHttp(subscription, headers, message, producer, logger)
+        }
         else -> {
             val timestamp = LocalDateTime.now()
             val snsMessage = createSnsMessage(timestamp, message, subscription)
