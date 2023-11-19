@@ -174,6 +174,21 @@ private fun publishMessage(
             producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers + mapOf("Content-Type" to "application/json"))
                 .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
         }
+        "http" -> {
+            val isRawMessageDelivery = subscription.subscriptionAttributes["RawMessageDelivery"] == "true"
+            val httpHeaders = if (isRawMessageDelivery) {
+                headers + mapOf("x-amz-sns-rawdelivery" to "true")
+            } else { headers }
+
+            val messageToPublish = if (isRawMessageDelivery) {
+                message
+            } else {
+                 gson.toJson(snsMessage)
+            }
+
+            producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, httpHeaders)
+                .exceptionally { logger.error("Error publishing message $messageToPublish, to subscription: $subscription", it) }
+        }
         else -> {
             val messageToPublish = gson.toJson(snsMessage)
             producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers)

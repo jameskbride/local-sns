@@ -190,6 +190,36 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
+    fun `it can publish raw messages to http endpoints`(testContext: VertxTestContext) {
+        val message = "Hello, SNS!"
+        // Define a POST route
+        router.post("/testEndpoint").handler { routingContext ->
+            val request = routingContext.request()
+            request.bodyHandler { body ->
+                val requestBody = body.toString("UTF-8")
+                assertEquals(message, requestBody)
+                assertEquals(request.headers().get("x-amz-sns-rawdelivery"), "true")
+                testContext.completeNow()
+            }
+
+            val response = routingContext.response()
+            response.setStatusCode(200).end("POST Request Received")
+        }
+
+        val topic = createTopicModel("httpTopic")
+        subscribe(
+            topic.arn,
+            createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"),
+            "http",
+            mapOf("RawMessageDelivery" to "true")
+        )
+
+        val request = publishRequest(topic, message)
+
+        snsClient.publish(request)
+    }
+
+    @Test
     fun `it can publish to multiple subscriptions`(testContext: VertxTestContext) {
         val message = "Hello, SNS!"
         router.post("/testEndpoint1").handler { routingContext ->
