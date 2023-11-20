@@ -178,16 +178,22 @@ private fun publishMessage(
             publishToSqs(subscription, message, headers, producer, logger)
         }
         else -> {
-            val timestamp = LocalDateTime.now()
-            val snsMessage = createSnsMessage(subscription, message, timestamp)
-            val gson = Gson()
-            val messageToPublish = gson.toJson(snsMessage)
-            publish(subscription, messageToPublish, headers, producer, logger)
+            publishAllowingRawMessage(subscription, message, headers, producer, logger)
         }
     }
 }
 
 private fun publishToSqs(
+    subscription: Subscription,
+    message: String,
+    headers: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
+) {
+    publishAllowingRawMessage(subscription, message, headers, producer, logger)
+}
+
+private fun publishAllowingRawMessage(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
@@ -202,7 +208,6 @@ private fun publishToSqs(
         val gson = Gson()
         gson.toJson(snsMessage)
     }
-
     publish(subscription, messageToPublish, headers, producer, logger)
 }
 
