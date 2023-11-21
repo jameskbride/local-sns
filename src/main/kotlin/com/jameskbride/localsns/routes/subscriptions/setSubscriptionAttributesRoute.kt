@@ -42,6 +42,7 @@ val setSubscriptionAttributesRoute: (RoutingContext) -> Unit = route@{ ctx: Rout
         sub.arn != updatedSubscription.arn
     } + listOf(updatedSubscription)
     subscriptionsMap[subscription.topicArn] = updatedSubscriptions
+    vertx.eventBus().publish("configChange", "configChange")
     ctx.request().response()
         .putHeader("context-type", "text/xml")
         .setStatusCode(200)

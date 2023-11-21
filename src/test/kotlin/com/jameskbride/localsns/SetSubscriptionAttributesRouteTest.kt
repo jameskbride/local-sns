@@ -69,4 +69,16 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
 
         testContext.completeNow()
     }
+
+    @Test
+    fun `it triggers a database save when the message attribute is set`(vertx: Vertx, testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
+
+        vertx.eventBus().consumer<String>("configChange") {
+            testContext.completeNow()
+        }
+
+        setSubscriptionAttributes(subscriptionArn, "RawMessageDelivery", "true")
+    }
 }
