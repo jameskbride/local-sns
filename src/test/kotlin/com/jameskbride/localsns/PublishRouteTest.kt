@@ -49,7 +49,7 @@ class PublishRouteTest: BaseTest() {
     @Test
     fun `it returns an error when MessageStructure is not json`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue2"), "sqs")
+        subscribe(topic.arn, createSqsEndpoint("queue2"), "sqs")
         val message = "Hello, SNS!"
 
         val response = publish(topic.arn, message, messageStructure = "wrongValue")
@@ -61,7 +61,7 @@ class PublishRouteTest: BaseTest() {
     @Test
     fun `it returns an error when MessageStructure is valid and Message is not JSON`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue2"), "sqs")
+        subscribe(topic.arn, createSqsEndpoint("queue2"), "sqs")
         val message = "Hello, SNS!"
 
         val response = publish(topic.arn, message, messageStructure = "json")
@@ -73,7 +73,7 @@ class PublishRouteTest: BaseTest() {
     @Test
     fun `it returns an error when MessageStructure is valid and Message does not contain a default key`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue2"), "sqs")
+        subscribe(topic.arn, createSqsEndpoint("queue2"), "sqs")
         data class BadMessage(val http:String): Serializable
         val badMessage = BadMessage(http = "some message")
         val message = Json.encode(badMessage)

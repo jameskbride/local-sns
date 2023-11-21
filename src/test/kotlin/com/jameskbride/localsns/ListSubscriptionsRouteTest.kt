@@ -29,12 +29,12 @@ class ListSubscriptionsRouteTest: BaseTest() {
     @Test
     fun `it returns subscriptions when they exist `(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val endpoint1 = createEndpoint("queue1")
+        val endpoint1 = createSqsEndpoint("queue1")
         val subscribeResponse1 = subscribe(topic.arn, endpoint1, "sqs")
         val subscription1Arn = getSubscriptionArnFromResponse(subscribeResponse1)
 
         val topic2 = createTopicModel("topic2")
-        val endpoint2 = createEndpoint("queue2")
+        val endpoint2 = createSqsEndpoint("queue2")
         val subscribeResponse2 = subscribe(topic2.arn, endpoint2, "lambda")
         val subscription2Arn = getSubscriptionArnFromResponse(subscribeResponse2)
 

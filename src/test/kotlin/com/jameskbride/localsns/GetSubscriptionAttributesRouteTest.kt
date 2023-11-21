@@ -38,7 +38,7 @@ class GetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it returns an error when SubscriptionArn is invalid`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topicArn = topic.arn, createEndpoint("queue1"), "sqs")
+        subscribe(topicArn = topic.arn, createSqsEndpoint("queue1"), "sqs")
         val response = getSubscriptionAttributes("bad arn")
 
         assertEquals(400, response.statusCode)
@@ -48,7 +48,7 @@ class GetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it can return default attribute values`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val endpoint = createEndpoint("queue1")
+        val endpoint = createSqsEndpoint("queue1")
         val subscriptionArn = getSubscriptionArnFromResponse((subscribe(topicArn = topic.arn, endpoint, "sqs")))
 
         val response = getSubscriptionAttributes(subscriptionArn)
@@ -73,7 +73,7 @@ class GetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it can return overridden attributes`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val endpoint = createEndpoint("queue1")
+        val endpoint = createSqsEndpoint("queue1")
         val subscriptionArn = getSubscriptionArnFromResponse((subscribe(topicArn = topic.arn, endpoint, "sqs")))
 
         setSubscriptionAttributes(subscriptionArn, "RawMessageDelivery", "true")
@@ -90,7 +90,7 @@ class GetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it can return arbitrary attributes`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val endpoint = createEndpoint("queue1")
+        val endpoint = createSqsEndpoint("queue1")
         val subscriptionArn = getSubscriptionArnFromResponse((subscribe(topicArn = topic.arn, endpoint, "sqs")))
 
         setSubscriptionAttributes(subscriptionArn, "status", "sending")

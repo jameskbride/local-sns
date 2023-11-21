@@ -28,7 +28,7 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it returns an error when AttributeName is missing`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createEndpoint("queue1"), "sqs"))
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
 
         val response = setSubscriptionAttributes(subscriptionArn, null, "value")
 
@@ -40,7 +40,7 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it returns an error when AttributeValue is missing`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createEndpoint("queue1"), "sqs"))
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
 
         val response = setSubscriptionAttributes(subscriptionArn, attributeName = null, "name")
 
@@ -61,7 +61,7 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it returns success when the message attribute is set`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createEndpoint("queue1"), "sqs"))
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
 
         val response = setSubscriptionAttributes(subscriptionArn, "name", "value")
 

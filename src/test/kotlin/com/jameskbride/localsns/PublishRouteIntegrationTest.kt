@@ -25,12 +25,19 @@ import software.amazon.awssdk.services.sns.SnsClient
 import software.amazon.awssdk.services.sns.model.MessageAttributeValue
 import software.amazon.awssdk.services.sns.model.PublishRequest
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
+import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest
 import software.amazon.awssdk.services.sqs.model.Message
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse
 import java.io.Serializable
 import java.net.URI
+
+private const val ELASTIC_MQ_SERVER_URL = "http://localhost:9324/000000000000"
+
+fun createQueueUrl(queueName: String): String {
+    return "$ELASTIC_MQ_SERVER_URL/$queueName"
+}
 
 @ExtendWith(VertxExtension::class)
 class PublishRouteIntegrationTest: BaseTest() {
@@ -46,6 +53,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         private lateinit var httpServer: HttpServer
         private lateinit var server: ElasticMQServer
         private lateinit var sqsClient: SqsAsyncClient
+        private lateinit var sqsSyncClient: SqsClient
         private lateinit var snsClient: SnsClient
         private lateinit var credentials: AwsBasicCredentials
         private lateinit var config: Config
@@ -62,6 +70,12 @@ class PublishRouteIntegrationTest: BaseTest() {
                 .build()
 
             sqsClient = SqsAsyncClient.builder()
+                .region(Region.US_EAST_1)
+                .credentialsProvider { credentials }
+                .endpointOverride(URI.create("http://localhost:9324"))
+                .build()
+
+            sqsSyncClient = SqsClient.builder()
                 .region(Region.US_EAST_1)
                 .credentialsProvider { credentials }
                 .endpointOverride(URI.create("http://localhost:9324"))
@@ -87,10 +101,12 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish messages to sqs`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue1"), "sqs")
+        val queueName = "standard-publish"
+        val endpoint = createQueue(queueName)
+        subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
 
-        val queueUrl = "http://localhost:9324/000000000000/queue1"
+        val queueUrl = createQueueUrl(queueName)
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
             assertTrue(messages.any {
@@ -109,15 +125,42 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
+    fun `it can publish raw messages to sqs`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "raw-queue"
+        val endpoint = createQueue(queueName)
+        subscribe(topic.arn, endpoint, "sqs", mapOf("RawMessageDelivery" to "true"))
+        val message = "Hello, SNS!"
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages()
+            assertTrue(messages.any {
+                message == it.body()
+            })
+            messages.forEach {
+                sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
+            }
+            testContext.completeNow()
+        }
+
+        val request = publishRequest(topic, message)
+        snsClient.publish(request)
+    }
+
+    @Test
     fun `it can publish using the TargetArn`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue2"), "sqs")
+        val queueName = "target-arn-queue"
+        createQueue(queueName)
+        val endpoint = createSqsEndpoint(queueName)
+        subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
         val request = publishRequest(topic, message, useTargetArn = true)
 
         snsClient.publish(request)
 
-        val queueUrl = "http://localhost:9324/000000000000/queue2"
+        val queueUrl = createQueueUrl(queueName)
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
             assertTrue(messages.any {
@@ -134,7 +177,9 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish with message attributes`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createEndpoint("queue1"), "sqs")
+        val queueName = "with-attributes"
+        val endpoint = createQueue(queueName)
+        subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
         val messageAttributes = mapOf(
             "first" to "firstValue",
@@ -145,7 +190,7 @@ class PublishRouteIntegrationTest: BaseTest() {
 
         snsClient.publish(request)
 
-        val queueUrl = "http://localhost:9324/000000000000/queue1"
+        val queueUrl = createQueueUrl("with-attributes")
         startReceivingMessages(queueUrl, messageAttributes.keys) { response ->
             val messages = response.messages()
             if (messages.any {
@@ -162,6 +207,19 @@ class PublishRouteIntegrationTest: BaseTest() {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
             }
         }
+    }
+
+    private fun createQueueUrl(queueName: String): String {
+        return "$ELASTIC_MQ_SERVER_URL/$queueName"
+    }
+
+    private fun createQueue(queueName: String): String {
+        sqsSyncClient.createQueue {
+            it.queueName(queueName)
+            it.build()
+        }
+
+        return createSqsEndpoint(queueName)
     }
 
     @Test
@@ -183,6 +241,36 @@ class PublishRouteIntegrationTest: BaseTest() {
 
         val topic = createTopicModel("httpTopic")
         subscribe(topic.arn, createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"), "http")
+
+        val request = publishRequest(topic, message)
+
+        snsClient.publish(request)
+    }
+
+    @Test
+    fun `it can publish raw messages to http endpoints`(testContext: VertxTestContext) {
+        val message = "Hello, SNS!"
+        // Define a POST route
+        router.post("/testEndpoint").handler { routingContext ->
+            val request = routingContext.request()
+            request.bodyHandler { body ->
+                val requestBody = body.toString("UTF-8")
+                assertEquals(message, requestBody)
+                assertEquals(request.headers().get("x-amz-sns-rawdelivery"), "true")
+                testContext.completeNow()
+            }
+
+            val response = routingContext.response()
+            response.setStatusCode(200).end("POST Request Received")
+        }
+
+        val topic = createTopicModel("httpTopic")
+        subscribe(
+            topic.arn,
+            createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"),
+            "http",
+            mapOf("RawMessageDelivery" to "true")
+        )
 
         val request = publishRequest(topic, message)
 
@@ -279,6 +367,74 @@ class PublishRouteIntegrationTest: BaseTest() {
 
         val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
         snsClient.publish(request)
+    }
+
+    @Test
+    fun `it can publish raw http messages using MessageStructure`(vertx: Vertx, testContext: VertxTestContext) {
+        data class Message(val default: String, val http:String): Serializable
+        data class JsonMessage(val key:String):Serializable
+        val httpMessage = Json.encode(JsonMessage("hello http"))
+        val message = Message("default message", httpMessage)
+
+        // Define a POST route
+        router.post("/testEndpoint").handler { routingContext ->
+            val request = routingContext.request()
+            request.bodyHandler { body ->
+                val requestBody = body.toString("UTF-8")
+                assertEquals(message.http, httpMessage)
+                testContext.completeNow()
+            }
+
+            val response = routingContext.response()
+            response.setStatusCode(200).end("POST Request Received")
+        }
+
+        val topic = createTopicModel("topic1")
+        subscribe(
+            topic.arn,
+            createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"),
+            "http",
+            mapOf("RawMessageDelivery" to "true")
+        )
+
+        val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
+        snsClient.publish(request)
+    }
+
+    @Test
+    fun `it can publish raw sqs messages using MessageStructure`(vertx: Vertx, testContext: VertxTestContext) {
+        data class Message(val default: String, val sqs:String): Serializable
+        data class JsonMessage(val key:String):Serializable
+        val jsonMessage = Json.encode(JsonMessage("hello sqs"))
+        val message = Message("default message", jsonMessage)
+
+        val queueName = "raw-message-structure-sqs"
+        val endpoint = createQueue(queueName)
+        val topic = createTopicModel("topic1")
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf("RawMessageDelivery" to "true")
+        )
+
+        val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages()
+            if (messages.any {
+                    jsonMessage == message.sqs
+                }) {
+                testContext.completeNow()
+            } else {
+                testContext.failNow("Message not found")
+            }
+            messages.forEach {
+                sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
+            }
+        }
     }
 
     private fun messageHasAttribute(message: Message, key: String, value: String) =

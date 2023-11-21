@@ -10,7 +10,6 @@ import org.apache.camel.ProducerTemplate
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-import java.net.URLDecoder
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -114,7 +113,7 @@ private fun publishJsonStructure(
                     messages["default"]
                 }
                 logger.info("Messages to publish: $messageToPublish")
-                publishMessage(producerTemplate, subscription, messageToPublish as String, logger, messageAttributes)
+                publishMessage(subscription, messageToPublish as String, messageAttributes, producerTemplate, logger)
             } catch (e: Exception) {
                 logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
             }
@@ -137,7 +136,7 @@ private fun publishBasicMessage(
     subscriptions.forEach { subscription ->
         try {
             logger.info("Message to publish: $message")
-            publishMessage(producerTemplate, subscription, message, logger, messageAttributes)
+            publishMessage(subscription, message, messageAttributes, producerTemplate, logger)
         } catch (e: Exception) {
             logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
         }
@@ -149,13 +148,12 @@ fun getTopicArn(topicArn: String?, targetArn: String?): String? {
 }
 
 private fun publishMessage(
-    producer: ProducerTemplate,
     subscription: Subscription,
     message: String,
-    logger: Logger,
-    messageAttributes: Map<String, String>
+    messageAttributes: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
 ) {
-    val decodedUrl = URLDecoder.decode(subscription.endpoint, "UTF-8")
     val headers = messageAttributes.map { it.key to it.value }.toMap() +
             mapOf(
                 "x-amz-sns-message-type" to "Notification",
@@ -163,29 +161,127 @@ private fun publishMessage(
                 "x-amz-sns-subscription-arn" to subscription.arn,
                 "x-amz-sns-topic-arn" to subscription.topicArn
             )
-    val timestamp = LocalDateTime.now()
-    val snsMessage = createSnsMessage(timestamp, message, subscription)
-    val gson = Gson()
     when (subscription.protocol) {
         "lambda" -> {
-            val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
-            val event = LambdaEvent(listOf(record))
-            val messageToPublish = gson.toJson(event)
-            producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers + mapOf("Content-Type" to "application/json"))
-                .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
+            publishToLambda(subscription, message, headers, producer, logger)
+        }
+        "http" -> {
+            publishToHttp(subscription, message, headers, producer, logger)
+        }
+        "https" -> {
+            publishToHttp(subscription, message, headers, producer, logger)
+        }
+        "slack" -> {
+            publishToSlack(subscription, message, headers, producer, logger)
+        }
+        "sqs" -> {
+            publishToSqs(subscription, message, headers, producer, logger)
         }
         else -> {
-            val messageToPublish = gson.toJson(snsMessage)
-            producer.asyncRequestBodyAndHeaders(decodedUrl, messageToPublish, headers)
-                .exceptionally { logger.error("Error publishing message $messageToPublish, to subscription: $subscription", it) }
+            publishAllowingRawMessage(subscription, message, headers, producer, logger)
         }
     }
 }
 
-private fun createSnsMessage(
-    timestamp: LocalDateTime?,
+private fun publishToSqs(
+    subscription: Subscription,
     message: String,
-    subscription: Subscription
+    headers: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
+) {
+    publishAllowingRawMessage(subscription, message, headers, producer, logger)
+}
+
+private fun publishAllowingRawMessage(
+    subscription: Subscription,
+    message: String,
+    headers: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
+) {
+    val messageToPublish = if (subscription.isRawMessageDelivery()) {
+        message
+    } else {
+        val timestamp = LocalDateTime.now()
+        val snsMessage = createSnsMessage(subscription, message, timestamp)
+        val gson = Gson()
+        gson.toJson(snsMessage)
+    }
+    publish(subscription, messageToPublish, headers, producer, logger)
+}
+
+private fun publishToLambda(
+    subscription: Subscription,
+    message: String,
+    headers: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
+) {
+    val timestamp = LocalDateTime.now()
+    val snsMessage = createSnsMessage(subscription, message, timestamp)
+    val gson = Gson()
+    val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
+    val event = LambdaEvent(listOf(record))
+    val messageToPublish = gson.toJson(event)
+    producer.asyncRequestBodyAndHeaders(
+        subscription.decodedEndpointUrl(),
+        messageToPublish,
+        headers + mapOf("Content-Type" to "application/json")
+    )
+        .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
+}
+
+private fun publishToHttp(
+    subscription: Subscription,
+    message: String,
+    headers: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
+) {
+    val timestamp = LocalDateTime.now()
+    val snsMessage = createSnsMessage(subscription, message, timestamp)
+    val gson = Gson()
+    val httpHeaders = if (subscription.isRawMessageDelivery()) {
+        headers + mapOf("x-amz-sns-rawdelivery" to "true")
+    } else {
+        headers
+    }
+
+    val messageToPublish = if (subscription.isRawMessageDelivery()) {
+        message
+    } else {
+        gson.toJson(snsMessage)
+    }
+
+    publish(subscription, messageToPublish, httpHeaders, producer, logger)
+}
+
+private fun publishToSlack(
+    subscription: Subscription,
+    message: String,
+    headers: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
+) {
+    publish(subscription, message, headers, producer, logger)
+}
+
+private fun publish(
+    subscription: Subscription,
+    message: String,
+    headers: Map<String, String>,
+    producer: ProducerTemplate,
+    logger: Logger
+) {
+    producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), message, headers)
+        .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
+}
+
+private fun createSnsMessage(
+    subscription: Subscription,
+    message: String,
+    timestamp: LocalDateTime?
 ): SnsMessage {
     val formattedTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(timestamp)
     return SnsMessage(
