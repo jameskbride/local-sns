@@ -68,4 +68,45 @@ class DatabaseVerticleTest: BaseTest() {
 
         vertx.eventBus().publish("configChange", "conf")
     }
+
+    @Tag("skipForCI")
+    @Test
+    fun `it persists subscription attributes`(vertx: Vertx, testContext: VertxTestContext) {
+        val topic = Topic(arn=createValidArn("topic1"), name="topic1")
+        val subscription = Subscription(
+            topicArn = topic.arn,
+            arn = createValidArn("subscription1"),
+            owner="owner",
+            protocol="sqs",
+            endpoint=createSqsEndpoint("queue1"),
+            subscriptionAttributes = mapOf("RawMessageDelivery" to "true")
+        )
+
+        val topics = getTopicsMap(vertx)!!
+        topics[topic.arn] = topic
+
+        val subscriptions = getSubscriptionsMap(vertx)!!
+        subscriptions[topic.arn] = subscriptions.getOrDefault(topic.arn, listOf()) + subscription
+
+        val config = ConfigFactory.load()
+
+        vertx.eventBus().consumer<String>("configChangeComplete") {
+            vertx.fileSystem()
+                .readFile(getDbOutputPath(config))
+                .onComplete {result ->
+                    val configFile = result.result()
+                    val jsonConfig = JsonObject(configFile)
+
+                    val configuration = jsonConfig.mapTo(Configuration::class.java)
+                    assertEquals(configuration.version, 1)
+                    assertTrue(configuration.topics.contains(topic))
+                    assertTrue(configuration.subscriptions.contains(subscription))
+                    val foundSubscription = configuration.subscriptions[0]
+                    assertEquals(foundSubscription.subscriptionAttributes["RawMessageDelivery"], "true")
+                    testContext.completeNow()
+                }
+        }
+
+        vertx.eventBus().publish("configChange", "conf")
+    }
 }

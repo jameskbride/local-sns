@@ -10,7 +10,7 @@ data class Subscription(
   val topicArn: String,
   val protocol: String,
   val endpoint: String?,
-  @JsonIgnore val subscriptionAttributes: Map<String, String> = mapOf()
+  val subscriptionAttributes: Map<String, String> = mapOf()
 ): Serializable {
   companion object {
     val namePattern = """([\w+_-]{1,256})"""
