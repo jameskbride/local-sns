@@ -342,7 +342,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
-    fun `it can publish using MessageStructure`(vertx: Vertx, testContext: VertxTestContext) {
+    fun `it can publish using MessageStructure`(testContext: VertxTestContext) {
         data class Message(val default: String, val http:String): Serializable
         data class JsonMessage(val key:String):Serializable
         val httpMessage = Json.encode(JsonMessage("hello http"))
@@ -370,7 +370,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
-    fun `it can publish raw http messages using MessageStructure`(vertx: Vertx, testContext: VertxTestContext) {
+    fun `it can publish raw http messages using MessageStructure`(testContext: VertxTestContext) {
         data class Message(val default: String, val http:String): Serializable
         data class JsonMessage(val key:String):Serializable
         val httpMessage = Json.encode(JsonMessage("hello http"))
@@ -379,8 +379,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         // Define a POST route
         router.post("/testEndpoint").handler { routingContext ->
             val request = routingContext.request()
-            request.bodyHandler { body ->
-                val requestBody = body.toString("UTF-8")
+            request.bodyHandler {
                 assertEquals(message.http, httpMessage)
                 testContext.completeNow()
             }
@@ -402,7 +401,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
-    fun `it can publish raw sqs messages using MessageStructure`(vertx: Vertx, testContext: VertxTestContext) {
+    fun `it can publish raw sqs messages using MessageStructure`(testContext: VertxTestContext) {
         data class Message(val default: String, val sqs:String): Serializable
         data class JsonMessage(val key:String):Serializable
         val jsonMessage = Json.encode(JsonMessage("hello sqs"))
