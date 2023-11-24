@@ -13,7 +13,6 @@ data class Subscription(
   val subscriptionAttributes: Map<String, String> = mapOf()
 ): Serializable {
   companion object {
-    val namePattern = """([\w+_-]{1,256})"""
     val arnPattern = """([\w+_:-]{1,512})"""
   }
 

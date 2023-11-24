@@ -95,7 +95,7 @@ open class BaseTest {
         return postFormData(data)
     }
 
-    fun subscribe(topicArn: String?, endpoint: String?, protocol: String?, messageAttributes: Map<String, String> = mapOf()): Response {
+    fun subscribe(topicArn: String?, endpoint: String?, protocol: String?, subscriptionAttributes: Map<String, String> = mapOf()): Response {
         val data = mutableMapOf(
             "Action" to "Subscribe",
         )
@@ -109,11 +109,10 @@ open class BaseTest {
             data["Protocol"] = protocol
         }
 
-        messageAttributes.onEachIndexed { index, entry ->
+        subscriptionAttributes.onEachIndexed { index, entry ->
             val oneBasedIndex = index + 1
-            data["Attributes.entry.$oneBasedIndex.Name"]= entry.key
-            data["Attributes.entry.$oneBasedIndex.Value.StringValue"]= entry.value
-            data["Attributes.entry.$oneBasedIndex.DataType"] = "String"
+            data["Attributes.entry.$oneBasedIndex.key"]= entry.key
+            data["Attributes.entry.$oneBasedIndex.value"]= entry.value
         }
 
         return postFormData(data)
