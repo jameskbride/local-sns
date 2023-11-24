@@ -4,7 +4,7 @@ private const val SUBSCRIPTION_ATTRIBUTE_PATTERN = ".*Attributes\\.entry\\.(\\d+
 
 data class SubscriptionAttribute(val name:String, val value:String) {
     companion object {
-        fun parse(attributes: List<MutableMap.MutableEntry<String, String>>): Map<String, SubscriptionAttribute> {
+        fun parse(attributes: List<MutableMap.MutableEntry<String, String>>): Map<String, String> {
             val pattern = SUBSCRIPTION_ATTRIBUTE_PATTERN.toRegex()
             val entryNumbers = attributes.map { attribute ->
                 val match = pattern.matchEntire(attribute.key)
@@ -22,8 +22,8 @@ data class SubscriptionAttribute(val name:String, val value:String) {
                     it.key.matches(namePattern.toRegex())
                 }!!.value
 
-                mapOf(name to SubscriptionAttribute(name, value))
-            }.fold(mapOf<String, SubscriptionAttribute>()) { acc, map -> acc + map }
+                mapOf(name to value)
+            }.fold(mapOf<String, String>()) { acc, map -> acc + map }
 
             return subscriptionAttributes
         }

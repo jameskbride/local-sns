@@ -46,15 +46,15 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
     logger.info("Attributes passed to subscribe: $attributes")
-    val subscriptionAttributes:Map<String, SubscriptionAttribute> = SubscriptionAttribute.parse(
+    val subscriptionAttributes:Map<String, String> = SubscriptionAttribute.parse(
         attributes.filter { it.key.startsWith("Attributes.entry") }
     )
 
-    if (subscriptionAttributes.containsKey("RawMessageDelivery") && !listOf("true", "false").contains(subscriptionAttributes["RawMessageDelivery"]!!.value)) {
+    if (subscriptionAttributes.containsKey("RawMessageDelivery") && !listOf("true", "false").contains(subscriptionAttributes["RawMessageDelivery"])) {
         logAndReturnError(
             ctx,
             logger,
-            "Invalid parameter: Attributes Reason: RawMessageDelivery: Invalid value ${subscriptionAttributes["RawMessageDelivery"]!!.value}. Must be true or false.",
+            "Invalid parameter: Attributes Reason: RawMessageDelivery: Invalid value ${subscriptionAttributes["RawMessageDelivery"]}. Must be true or false.",
         )
         return@route
     }
@@ -67,7 +67,7 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         topicArn = topicArn,
         protocol = protocol,
         endpoint = endpoint,
-        subscriptionAttributes = subscriptionAttributes.values.map { mapOf(it.name to it.value) }.fold(mapOf()) { acc, map -> acc + map }
+        subscriptionAttributes = subscriptionAttributes
     )
     logger.info("Creating subscription: {}", subscription)
     val updatedSubscriptions = subscriptions.getOrDefault(topicArn, listOf()) + subscription
