@@ -34,6 +34,15 @@ val setSubscriptionAttributesRoute: (RoutingContext) -> Unit = route@{ ctx: Rout
         return@route
     }
 
+    if (attributeName == "RawMessageDelivery" && !listOf("true", "false").contains(attributeValue)) {
+        logAndReturnError(
+            ctx,
+            logger,
+            "Invalid parameter: Attributes Reason: RawMessageDelivery: Invalid value ${attributeValue}. Must be true or false.",
+        )
+        return@route
+    }
+
     val updatedAttributes = subscription.subscriptionAttributes + mapOf(
         attributeName to attributeValue
     )
