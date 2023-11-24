@@ -1,8 +1,8 @@
 package com.jameskbride.localsns.routes.subscriptions
 
 import com.jameskbride.localsns.*
-import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Subscription
+import com.jameskbride.localsns.models.SubscriptionAttribute
 import com.jameskbride.localsns.models.Topic
 import com.typesafe.config.ConfigFactory
 import io.vertx.ext.web.RoutingContext
@@ -17,8 +17,6 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val endpoint = getFormAttribute(ctx,"Endpoint")
     val protocol = getFormAttribute(ctx,"Protocol")
     val attributes = ctx.request().formAttributes()
-        .filter { it.key.startsWith("Attributes.entry") }
-        .filterNot { it.key.matches(".*\\.DataType.*".toRegex()) }
     val vertx = ctx.vertx()
     val topicsMap = getTopicsMap(vertx)
     if (topicArn == null || protocol == null) {
@@ -47,8 +45,19 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         )
         return@route
     }
+    logger.info("Attributes passed to subscribe: $attributes")
+    val subscriptionAttributes:Map<String, String> = SubscriptionAttribute.parse(
+        attributes.filter { it.key.startsWith("Attributes.entry") }
+    )
 
-    val messageAttributes = MessageAttribute.parse(attributes)
+    if (subscriptionAttributes.containsKey("RawMessageDelivery") && !listOf("true", "false").contains(subscriptionAttributes["RawMessageDelivery"])) {
+        logAndReturnError(
+            ctx,
+            logger,
+            "Invalid parameter: Attributes Reason: RawMessageDelivery: Invalid value ${subscriptionAttributes["RawMessageDelivery"]}. Must be true or false.",
+        )
+        return@route
+    }
 
     val subscriptions = getSubscriptionsMap(vertx)!!
     val owner = getAwsAccountId(config = ConfigFactory.load())
@@ -58,7 +67,7 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         topicArn = topicArn,
         protocol = protocol,
         endpoint = endpoint,
-        subscriptionAttributes = messageAttributes.map { mapOf(it.name to it.value) }.fold(mapOf()) { acc, map -> acc + map }
+        subscriptionAttributes = subscriptionAttributes
     )
     logger.info("Creating subscription: {}", subscription)
     val updatedSubscriptions = subscriptions.getOrDefault(topicArn, listOf()) + subscription
@@ -69,14 +78,14 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         .putHeader("context-type", "text/xml")
         .end(
             """
-                      <SubscribeResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/">
-                        <SubscribeResult>
-                          <SubscriptionArn>${subscription.arn}</SubscriptionArn>
-                        </SubscribeResult>
-                        <ResponseMetadata>
-                          <RequestId>${UUID.randomUUID()}</RequestId>
-                        </ResponseMetadata>
-                      </SubscribeResponse>
-                    """.trimIndent()
+              <SubscribeResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/">
+                <SubscribeResult>
+                  <SubscriptionArn>${subscription.arn}</SubscriptionArn>
+                </SubscribeResult>
+                <ResponseMetadata>
+                  <RequestId>${UUID.randomUUID()}</RequestId>
+                </ResponseMetadata>
+              </SubscribeResponse>
+            """.trimIndent()
         )
 }

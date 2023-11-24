@@ -34,6 +34,15 @@ val setSubscriptionAttributesRoute: (RoutingContext) -> Unit = route@{ ctx: Rout
         return@route
     }
 
+    if (attributeName == "RawMessageDelivery" && !listOf("true", "false").contains(attributeValue)) {
+        logAndReturnError(
+            ctx,
+            logger,
+            "Invalid parameter: Attributes Reason: RawMessageDelivery: Invalid value ${attributeValue}. Must be true or false.",
+        )
+        return@route
+    }
+
     val updatedAttributes = subscription.subscriptionAttributes + mapOf(
         attributeName to attributeValue
     )
@@ -42,6 +51,7 @@ val setSubscriptionAttributesRoute: (RoutingContext) -> Unit = route@{ ctx: Rout
         sub.arn != updatedSubscription.arn
     } + listOf(updatedSubscription)
     subscriptionsMap[subscription.topicArn] = updatedSubscriptions
+    vertx.eventBus().publish("configChange", "configChange")
     ctx.request().response()
         .putHeader("context-type", "text/xml")
         .setStatusCode(200)

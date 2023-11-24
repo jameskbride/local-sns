@@ -82,12 +82,12 @@ class SubscribeRouteTest : BaseTest() {
 
     @Test
     fun `it can subscribe with message attributes`(testContext: VertxTestContext) {
-        val messageAttributes = mapOf(
+        val subscriptionAttributes = mapOf(
             "FilterPolicy" to "the policy"
         )
         val topic = createTopicModel("topic1")
 
-        val response = subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs", messageAttributes)
+        val response = subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs", subscriptionAttributes)
         val subscriptionArn = getSubscriptionArnFromResponse(response)
         assertEquals(200, response.statusCode)
         assertTrue(subscriptionArn.isNotEmpty())
@@ -95,6 +95,20 @@ class SubscribeRouteTest : BaseTest() {
         val getSubscriptionAttributesResponse = getSubscriptionAttributes(subscriptionArn)
         val entries = getEntries(getSubscriptionAttributesResponse)
         assertAttributeFound(entries, "FilterPolicy", "the policy")
+
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it returns an error when the RawMessageDelivery value is invalid`(testContext: VertxTestContext) {
+        val subscriptionAttributes = mapOf(
+            "RawMessageDelivery" to ""
+        )
+        val topic = createTopicModel("topic1")
+
+        val response = subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs", subscriptionAttributes)
+        getSubscriptionArnFromResponse(response)
+        assertEquals(400, response.statusCode)
 
         testContext.completeNow()
     }

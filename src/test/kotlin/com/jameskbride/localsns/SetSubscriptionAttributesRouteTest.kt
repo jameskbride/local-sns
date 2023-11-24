@@ -50,6 +50,18 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
     }
 
     @Test
+    fun `it returns an error when RawMessageDelivery attribute value is invalid`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
+
+        val response = setSubscriptionAttributes(subscriptionArn, attributeName = "RawMessageDelivery", "not true or false")
+
+        assertEquals(400, response.statusCode)
+
+        testContext.completeNow()
+    }
+
+    @Test
     fun `it returns an error when SubscriptionArn does not exist`(testContext: VertxTestContext) {
         val response = setSubscriptionAttributes(createValidArn("queue1"), attributeName = "name", "name")
 
@@ -68,5 +80,17 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
         assertEquals(200, response.statusCode)
 
         testContext.completeNow()
+    }
+
+    @Test
+    fun `it triggers a database save when the message attribute is set`(vertx: Vertx, testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
+
+        vertx.eventBus().consumer<String>("configChange") {
+            testContext.completeNow()
+        }
+
+        setSubscriptionAttributes(subscriptionArn, "RawMessageDelivery", "true")
     }
 }
