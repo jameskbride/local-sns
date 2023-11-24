@@ -79,14 +79,14 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         .putHeader("context-type", "text/xml")
         .end(
             """
-                      <SubscribeResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/">
-                        <SubscribeResult>
-                          <SubscriptionArn>${subscription.arn}</SubscriptionArn>
-                        </SubscribeResult>
-                        <ResponseMetadata>
-                          <RequestId>${UUID.randomUUID()}</RequestId>
-                        </ResponseMetadata>
-                      </SubscribeResponse>
-                    """.trimIndent()
+              <SubscribeResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/">
+                <SubscribeResult>
+                  <SubscriptionArn>${subscription.arn}</SubscriptionArn>
+                </SubscribeResult>
+                <ResponseMetadata>
+                  <RequestId>${UUID.randomUUID()}</RequestId>
+                </ResponseMetadata>
+              </SubscribeResponse>
+            """.trimIndent()
         )
 }
