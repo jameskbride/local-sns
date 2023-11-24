@@ -98,4 +98,18 @@ class SubscribeRouteTest : BaseTest() {
 
         testContext.completeNow()
     }
+
+    @Test
+    fun `it returns an error when the RawMessageDelivery value is invalid`(testContext: VertxTestContext) {
+        val messageAttributes = mapOf(
+            "RawMessageDelivery" to ""
+        )
+        val topic = createTopicModel("topic1")
+
+        val response = subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs", messageAttributes)
+        getSubscriptionArnFromResponse(response)
+        assertEquals(400, response.statusCode)
+
+        testContext.completeNow()
+    }
 }

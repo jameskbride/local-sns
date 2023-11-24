@@ -17,8 +17,6 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val endpoint = getFormAttribute(ctx,"Endpoint")
     val protocol = getFormAttribute(ctx,"Protocol")
     val attributes = ctx.request().formAttributes()
-        .filter { it.key.startsWith("Attributes.entry") }
-        .filterNot { it.key.matches(".*\\.DataType.*".toRegex()) }
     val vertx = ctx.vertx()
     val topicsMap = getTopicsMap(vertx)
     if (topicArn == null || protocol == null) {
@@ -47,8 +45,20 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         )
         return@route
     }
+    logger.info("Attributes passed to subscribe: $attributes")
+    val messageAttributes:Map<String, MessageAttribute> = MessageAttribute.parse(attributes
+        .filter { it.key.startsWith("Attributes.entry") }
+        .filterNot { it.key.matches(".*\\.DataType.*".toRegex()) }
+    )
 
-    val messageAttributes = MessageAttribute.parse(attributes)
+    if (messageAttributes.containsKey("RawMessageDelivery") && !listOf("true", "false").contains(messageAttributes["RawMessageDelivery"]!!.value)) {
+        logAndReturnError(
+            ctx,
+            logger,
+            "Invalid parameter: Attributes Reason: RawMessageDelivery: Invalid value ${messageAttributes["RawMessageDelivery"]!!.value}. Must be true or false.",
+        )
+        return@route
+    }
 
     val subscriptions = getSubscriptionsMap(vertx)!!
     val owner = getAwsAccountId(config = ConfigFactory.load())
@@ -58,7 +68,7 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         topicArn = topicArn,
         protocol = protocol,
         endpoint = endpoint,
-        subscriptionAttributes = messageAttributes.map { mapOf(it.name to it.value) }.fold(mapOf()) { acc, map -> acc + map }
+        subscriptionAttributes = messageAttributes.values.map { mapOf(it.name to it.value) }.fold(mapOf()) { acc, map -> acc + map }
     )
     logger.info("Creating subscription: {}", subscription)
     val updatedSubscriptions = subscriptions.getOrDefault(topicArn, listOf()) + subscription

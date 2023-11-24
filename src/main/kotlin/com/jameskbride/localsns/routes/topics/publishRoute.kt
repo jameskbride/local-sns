@@ -56,7 +56,7 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
-    val messageAttributes = MessageAttribute.parse(attributes).associate { it.name to it.value }
+    val messageAttributes:Map<String, MessageAttribute> = MessageAttribute.parse(attributes)
     val subscriptionsMap = getSubscriptionsMap(vertx)
     val subscriptions = subscriptionsMap!!.getOrDefault(topicArn, listOf())
     val camelContext = DefaultCamelContext()
@@ -96,7 +96,7 @@ private fun publishJsonStructure(
     logger: Logger,
     subscriptions: List<Subscription>,
     producerTemplate: ProducerTemplate,
-    messageAttributes: Map<String, String>
+    messageAttributes: Map<String, MessageAttribute>
 ): Boolean {
     try {
         val messages = JsonObject(message)
@@ -131,7 +131,7 @@ private fun publishBasicMessage(
     logger: Logger,
     message: String,
     producerTemplate: ProducerTemplate,
-    messageAttributes: Map<String, String>
+    messageAttributes: Map<String, MessageAttribute>
 ) {
     subscriptions.forEach { subscription ->
         try {
@@ -150,11 +150,11 @@ fun getTopicArn(topicArn: String?, targetArn: String?): String? {
 private fun publishMessage(
     subscription: Subscription,
     message: String,
-    messageAttributes: Map<String, String>,
+    messageAttributes: Map<String, MessageAttribute>,
     producer: ProducerTemplate,
     logger: Logger
 ) {
-    val headers = messageAttributes.map { it.key to it.value }.toMap() +
+    val headers = messageAttributes.map { it.key to it.value.value }.toMap() +
             mapOf(
                 "x-amz-sns-message-type" to "Notification",
                 "x-amz-sns-message-id" to UUID.randomUUID().toString(),
