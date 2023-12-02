@@ -60,7 +60,7 @@ class GetSubscriptionAttributesRouteTest: BaseTest() {
         assertAttributeFound(entries, "SubscriptionArn", subscriptionArn)
         assertAttributeFound(entries, "TopicArn", topic.arn)
         assertAttributeFound(entries, "Owner", "")
-        assertAttributeFound(entries, "Endpoint", URLEncoder.encode(endpoint, "UTF-8"))
+        assertAttributeFound(entries, "Endpoint", endpoint)
         assertAttributeFound(entries, "Protocol", "sqs")
         assertAttributeFound(entries, "PendingConfirmation", "false")
         assertAttributeFound(entries, "SubscriptionPrincipal", "")

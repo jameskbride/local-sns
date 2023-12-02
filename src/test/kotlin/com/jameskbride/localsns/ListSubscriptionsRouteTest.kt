@@ -6,6 +6,7 @@ import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import org.jsoup.Jsoup
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -29,13 +30,34 @@ class ListSubscriptionsRouteTest: BaseTest() {
     @Test
     fun `it returns subscriptions when they exist `(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val endpoint1 = createSqsEndpoint("queue1")
-        val subscribeResponse1 = subscribe(topic.arn, endpoint1, "sqs")
+        val endpoint = createSqsEndpoint("queue1")
+        val subscribeResponse1 = subscribe(topic.arn, endpoint, "sqs")
         val subscription1Arn = getSubscriptionArnFromResponse(subscribeResponse1)
 
-        val topic2 = createTopicModel("topic2")
-        val endpoint2 = createSqsEndpoint("queue2")
-        val subscribeResponse2 = subscribe(topic2.arn, endpoint2, "lambda")
+        val response = listSubscriptions()
+        Assertions.assertEquals(200, response.statusCode)
+
+        val doc = Jsoup.parse(response.text)
+        val members = doc.select("member").toList()
+        assertTrue(members.any {
+            val text = it.text()
+            text.contains(subscription1Arn) && text.contains(topic.arn) && text
+                .contains("sqs") && text.contains("queue1")
+        })
+
+        assertTrue(members.any {
+            val text = it.text()
+            text.contains("Endpoint") && text.contains(endpoint)
+        })
+
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it returns lambda subscriptions when they exist `(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic2")
+        val endpoint = createSqsEndpoint("queue2")
+        val subscribeResponse2 = subscribe(topic.arn, endpoint, "lambda")
         val subscription2Arn = getSubscriptionArnFromResponse(subscribeResponse2)
 
         val response = listSubscriptions()
@@ -43,15 +65,10 @@ class ListSubscriptionsRouteTest: BaseTest() {
 
         val doc = Jsoup.parse(response.text)
         val members = doc.select("member").toList()
-        Assertions.assertTrue(members.any {
-            val text = it.text()
-            text.contains(subscription1Arn) && text.contains(topic.arn) && text
-                .contains("sqs") && text.contains("queue1")
-        })
 
-        Assertions.assertTrue(members.any {
+        assertTrue(members.any {
             val text = it.text()
-            text.contains(subscription2Arn) && text.contains(topic2.arn) && text
+            text.contains(subscription2Arn) && text.contains(topic.arn) && text
                 .contains("lambda") && text.contains("queue2")
         })
 

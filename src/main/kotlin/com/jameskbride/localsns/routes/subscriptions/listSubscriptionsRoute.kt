@@ -11,7 +11,7 @@ val listSubscriptionsRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
     val sharedData = getSubscriptionsMap(vertx)
     val subscriptions = sharedData!!.values.fold(listOf<Subscription>()) { acc, subscriptions -> acc + subscriptions }
     val subscriptionsContent = subscriptions.map{subscription ->
-        val endpoint = URLEncoder.encode(subscription.endpoint.orEmpty(), "UTF-8")
+        val endpoint = subscription.xmlEncodeEndpointUrl()
         """
         <member>
             <Owner>${subscription.owner}</Owner>

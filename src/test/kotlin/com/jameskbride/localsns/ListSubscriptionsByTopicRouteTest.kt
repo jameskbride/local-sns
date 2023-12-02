@@ -82,6 +82,11 @@ class ListSubscriptionsByTopicRouteTest: BaseTest() {
                 .contains("sqs") && text.contains("queue1")
         })
 
+        Assertions.assertTrue(members.any {
+            val text = it.text()
+            text.contains("Endpoint") && text.contains(endpoint1)
+        })
+
         //Only return subscriptions for the requested topic
         Assertions.assertTrue(members.none {
             val text = it.text()

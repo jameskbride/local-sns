@@ -35,7 +35,7 @@ val listSubscriptionsByTopicRoute: (RoutingContext) -> Unit = route@{ ctx: Routi
     val sharedData = getSubscriptionsMap(vertx)
     val subscriptions = sharedData!!.getOrDefault(topicArn, listOf())
     val subscriptionsContent = subscriptions.map { subscription ->
-        val endpoint = URLEncoder.encode(subscription.endpoint.orEmpty(), "UTF-8")
+        val endpoint = subscription.xmlEncodeEndpointUrl()
         """
             <member>
                 <Owner>${subscription.owner}</Owner>

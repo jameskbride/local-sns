@@ -23,4 +23,8 @@ data class Subscription(
   @JsonIgnore fun isRawMessageDelivery(): Boolean {
     return subscriptionAttributes.getOrDefault("RawMessageDelivery", "false") == "true"
   }
+
+  @JsonIgnore fun xmlEncodeEndpointUrl(): String? {
+    return endpoint?.replace("&", "&amp;") ?: endpoint
+  }
 }

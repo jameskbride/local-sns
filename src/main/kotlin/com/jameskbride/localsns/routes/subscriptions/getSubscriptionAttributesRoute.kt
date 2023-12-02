@@ -37,7 +37,7 @@ var getSubscriptionAttributesRoute: (RoutingContext) -> Unit = route@{ ctx: Rout
         return@route
     }
 
-    val endpoint = URLEncoder.encode(subscription.endpoint.orEmpty(), "UTF-8")
+    val endpoint = subscription.xmlEncodeEndpointUrl()
     val mergedAttributes = mapOf(
         "SubscriptionArn" to subscription.arn,
         "TopicArn" to subscription.topicArn,
