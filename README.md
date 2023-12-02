@@ -1,11 +1,15 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/jameskbride/local-sns.svg?maxAge=2592000)](https://hub.docker.com/r/jameskbride/localsns/)
+[![CI/CD for local-sns main](https://github.com/jameskbride/local-sns/actions/workflows/main.yaml/badge.svg)](https://github.com/jameskbride/local-sns/actions/workflows/main.yaml)
+
 
 # Local SNS
 Fake Amazon Simple Notification Service (SNS) for local development. Supports:
 - Create/List/Delete topics
-- Subscribe endpoint
+- Subscribe/unsubscribe endpoints
+- List subscriptions, list subscriptions by topic endpoints
+- Get/Set subscription attribute endpoints
 - Publish message
-- Subscription persistence
+- Subscription persistence to file, including subscription attributes
 - Integrations with (Fake-)SQS, File, HTTP, RabbitMQ, Slack, and Lambda
 
 ## Usage

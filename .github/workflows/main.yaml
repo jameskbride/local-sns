@@ -1,24 +1,23 @@
-name: CI/CD for local-sns Pull Requests
+name: Gradle Build
 
 on:
-  pull_request:
+  push:
     branches:
       - main
 
 jobs:
   build:
-    name: Build, Test
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Java
+      - name: Set up JDK
         uses: actions/setup-java@v2
         with:
           distribution: 'temurin'
           java-version: '11'
 
-      - name: Build and Test with Gradle
+      - name: Build with Gradle
         run: ./gradlew build
