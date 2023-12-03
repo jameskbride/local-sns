@@ -154,6 +154,9 @@ private fun publishMessage(
     producer: ProducerTemplate,
     logger: Logger
 ) {
+    if (subscription.subscriptionAttributes.containsKey("FilterPolicy")) {
+        return
+    }
     val headers = messageAttributes.map { it.key to it.value.value }.toMap() +
             mapOf(
                 "x-amz-sns-message-type" to "Notification",

@@ -1,5 +1,6 @@
 package com.jameskbride.localsns
 
+import com.google.gson.Gson
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.MainVerticle
 import com.typesafe.config.Config
@@ -116,6 +117,37 @@ class PublishRouteIntegrationTest: BaseTest() {
             })
             messages.forEach {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
+            }
+            testContext.completeNow()
+        }
+
+        val request = publishRequest(topic, message)
+        snsClient.publish(request)
+    }
+
+    @Test
+    fun `FilterPolicy - it does not publish when message attributes do not match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>): Serializable
+        val gson = Gson()
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy)
+            )
+        )
+        val message = "Hello, SNS!"
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.failNow("Message was not filtered")
             }
             testContext.completeNow()
         }
