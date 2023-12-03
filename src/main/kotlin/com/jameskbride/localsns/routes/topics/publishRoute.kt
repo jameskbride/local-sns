@@ -1,6 +1,7 @@
 package com.jameskbride.localsns.routes.topics
 
 import com.google.gson.Gson
+import com.google.gson.JsonArray
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.*
 import io.vertx.core.json.JsonObject
@@ -147,6 +148,8 @@ fun getTopicArn(topicArn: String?, targetArn: String?): String? {
     return topicArn ?: targetArn
 }
 
+private const val FILTER_POLICY = "FilterPolicy"
+
 private fun publishMessage(
     subscription: Subscription,
     message: String,
@@ -154,9 +157,12 @@ private fun publishMessage(
     producer: ProducerTemplate,
     logger: Logger
 ) {
-    if (subscription.subscriptionAttributes.containsKey("FilterPolicy")) {
-        return
+    if (subscription.subscriptionAttributes.containsKey(FILTER_POLICY)) {
+        if (!matchesFilterPolicy(subscription, messageAttributes)) {
+            return
+        }
     }
+
     val headers = messageAttributes.map { it.key to it.value.value }.toMap() +
             mapOf(
                 "x-amz-sns-message-type" to "Notification",
@@ -184,6 +190,24 @@ private fun publishMessage(
             publishAllowingRawMessage(subscription, message, headers, producer, logger)
         }
     }
+}
+
+private fun matchesFilterPolicy(
+    subscription: Subscription,
+    messageAttributes: Map<String, MessageAttribute>
+): Boolean {
+    val filterPolicySubscriptionAttribute = subscription.subscriptionAttributes[FILTER_POLICY]
+    val filterPolicy = JsonObject(filterPolicySubscriptionAttribute)
+    val matched = filterPolicy.map.all {
+        if (!messageAttributes.containsKey(it.key)) {
+            false
+        } else {
+            val permittedValues = it.value as List<String>
+            val messageAttribute = messageAttributes[it.key]
+            permittedValues.contains(messageAttribute!!.value)
+        }
+    }
+    return matched
 }
 
 private fun publishToSqs(

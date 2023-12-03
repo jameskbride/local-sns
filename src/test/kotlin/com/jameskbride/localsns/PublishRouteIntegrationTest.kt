@@ -157,6 +157,40 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
+    fun `FilterPolicy - it does publish when message attributes match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>): Serializable
+        val gson = Gson()
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy)
+            )
+        )
+        val message = "Hello, SNS!"
+
+        val request = publishRequest(
+            topic,
+            message,
+            mapOf("status" to "not_sent")
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("status")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
     fun `it can publish raw messages to sqs`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         val queueName = "raw-queue"
