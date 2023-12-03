@@ -1,9 +1,9 @@
 package com.jameskbride.localsns.routes.topics
 
 import com.google.gson.Gson
-import com.google.gson.JsonArray
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.*
+import com.jameskbride.localsns.models.SubscriptionAttribute.Companion.FILTER_POLICY
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.get
@@ -147,8 +147,6 @@ private fun publishBasicMessage(
 fun getTopicArn(topicArn: String?, targetArn: String?): String? {
     return topicArn ?: targetArn
 }
-
-private const val FILTER_POLICY = "FilterPolicy"
 
 private fun publishMessage(
     subscription: Subscription,

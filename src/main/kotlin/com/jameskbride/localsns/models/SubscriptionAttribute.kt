@@ -4,6 +4,9 @@ private const val SUBSCRIPTION_ATTRIBUTE_PATTERN = ".*Attributes\\.entry\\.(\\d+
 
 data class SubscriptionAttribute(val name:String, val value:String) {
     companion object {
+
+        const val FILTER_POLICY = "FilterPolicy"
+
         fun parse(attributes: List<MutableMap.MutableEntry<String, String>>): Map<String, String> {
             val pattern = SUBSCRIPTION_ATTRIBUTE_PATTERN.toRegex()
             val entryNumbers = attributes.map { attribute ->
