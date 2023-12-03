@@ -156,7 +156,12 @@ private fun publishMessage(
     logger: Logger
 ) {
     if (subscription.subscriptionAttributes.containsKey(FILTER_POLICY)) {
-        if (!matchesFilterPolicy(subscription, messageAttributes)) {
+        val filterPolicyScope = subscription.subscriptionAttributes.get("FilterPolicyScope")
+        val match = when (filterPolicyScope) {
+            "MessageBody" -> matchesFilterPolicy(subscription, message)
+            else -> matchesFilterPolicy(subscription, messageAttributes)
+        }
+        if (!match) {
             return
         }
     }
@@ -203,6 +208,22 @@ private fun matchesFilterPolicy(
             val permittedValues = it.value as List<String>
             val messageAttribute = messageAttributes[it.key]
             permittedValues.contains(messageAttribute!!.value)
+        }
+    }
+    return matched
+}
+
+private fun matchesFilterPolicy(subscription: Subscription, message:String): Boolean {
+    val filterPolicySubscriptionAttribute = subscription.subscriptionAttributes[FILTER_POLICY]
+    val filterPolicy = JsonObject(filterPolicySubscriptionAttribute)
+    val messageJson = JsonObject(message)
+    val matched = filterPolicy.map.all {
+        if (!messageJson.containsKey(it.key)) {
+            false
+        } else {
+            val permittedValues = it.value as List<String>
+            val messageAttribute = messageJson.getString(it.key)
+            permittedValues.contains(messageAttribute!!)
         }
     }
     return matched
