@@ -36,10 +36,6 @@ import java.net.URI
 
 private const val ELASTIC_MQ_SERVER_URL = "http://localhost:9324/000000000000"
 
-fun createQueueUrl(queueName: String): String {
-    return "$ELASTIC_MQ_SERVER_URL/$queueName"
-}
-
 @ExtendWith(VertxExtension::class)
 class PublishRouteIntegrationTest: BaseTest() {
 
