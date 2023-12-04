@@ -23,7 +23,9 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val topicArn = getTopicArn(topicArnFormAttribute, targetArnFormAttribute)
     val message = getFormAttribute(ctx, "Message")
     val messageStructure = getFormAttribute(ctx, "MessageStructure")
-    val attributes = ctx.request().formAttributes()
+    val formAttributes = ctx.request().formAttributes()
+    logger.info("MessageAttributes passed to publish: $formAttributes")
+    val attributes = formAttributes
         .filter { it.key.startsWith("MessageAttributes.entry") }
         .filterNot { it.key.matches(".*\\.DataType.*".toRegex()) }
     val vertx = ctx.vertx()
