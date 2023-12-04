@@ -221,8 +221,8 @@ private fun matchesFilterPolicy(subscription: Subscription, message:String): Boo
         if (!messageJson.containsKey(it.key)) {
             false
         } else {
-            val permittedValues = it.value as List<String>
-            val messageAttribute = messageJson.getString(it.key)
+            val permittedValues = it.value as List<*>
+            val messageAttribute = messageJson.getValue(it.key)
             permittedValues.contains(messageAttribute!!)
         }
     }

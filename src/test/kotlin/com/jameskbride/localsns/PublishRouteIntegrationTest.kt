@@ -336,9 +336,9 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "filter-policy-messagebody-multiple-queue"
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val type:List<String>): Serializable
+        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
         val gson = Gson()
-        val filterPolicy = FilterPolicy(status=listOf("not_sent"), type=listOf("notification"))
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(5.0), sold=listOf(true))
         subscribe(
             topic.arn,
             endpoint,
@@ -348,8 +348,8 @@ class PublishRouteIntegrationTest: BaseTest() {
                 "FilterPolicyScope" to "MessageBody",
             )
         )
-        data class Message(val status:String, val type:String)
-        val message = Message(status="not_sent", type="notification")
+        data class Message(val status:String, val amount:Double, val sold:Boolean)
+        val message = Message(status="not_sent", amount=5.0, sold=true)
 
         val request = publishRequest(
             topic,
