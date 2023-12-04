@@ -741,7 +741,12 @@ class PublishRouteIntegrationTest: BaseTest() {
         messageStructure: String? = null,
     ): PublishRequest? {
         val attributes =
-            messageAttributes.map { it.key to MessageAttributeValue.builder().stringValue(it.value).build() }.toMap()
+            messageAttributes.map { it.key to MessageAttributeValue.builder()
+                .apply {
+                    stringValue(it.value)
+                    dataType("String")
+                }.build()
+            }.toMap()
         return PublishRequest.builder()
             .apply {
                 if (useTargetArn) {
