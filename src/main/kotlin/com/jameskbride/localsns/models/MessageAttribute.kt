@@ -24,7 +24,12 @@ data class MessageAttribute(val name:String, val value:String, val dataType:Stri
                     it.key.matches(namePattern.toRegex())
                 }!!.value
 
-                mapOf(name to MessageAttribute(name, value))
+                val dataType = attributes.find {
+                    val namePattern = ".*Attributes\\.entry\\.$entryNumber.Value.DataType"
+                    it.key.matches(namePattern.toRegex())
+                }!!.value
+
+                mapOf(name to MessageAttribute(name, value, dataType))
             }.fold(mapOf<String, MessageAttribute>()) { acc, map -> acc + map }
 
             return messageAttributes

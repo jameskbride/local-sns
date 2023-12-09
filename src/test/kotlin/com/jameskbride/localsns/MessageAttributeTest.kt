@@ -23,4 +23,21 @@ class MessageAttributeTest {
         assertEquals("String", messageAttribute.dataType)
         assertEquals("not_sent", messageAttribute.value)
     }
+
+    @Test
+    fun `it can parse Number attributes`() {
+        val rawAttributes = mapOf(
+            "MessageAttributes.entry.1.Name" to "amount",
+            "MessageAttributes.entry.1.Value.DataType" to "Number",
+            "MessageAttributes.entry.1.Value.StringValue" to "10.56"
+        ).entries.toList()
+
+        val messageAttributes = MessageAttribute.parse(rawAttributes)
+        assertTrue(messageAttributes.keys.contains("amount"))
+
+        val messageAttribute = messageAttributes["amount"]
+        assertEquals("amount", messageAttribute!!.name)
+        assertEquals("Number", messageAttribute.dataType)
+        assertEquals("10.56", messageAttribute.value)
+    }
 }
