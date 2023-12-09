@@ -6,7 +6,7 @@ private const val ATTRIBUTE_PATTERN = ".*Attributes\\.entry\\.(\\d+)\\.(.*?)"
 
 data class MessageAttribute(val name:String, val value:String, val dataType:String = "String"): Serializable {
     companion object {
-        fun parse(attributes: List<MutableMap.MutableEntry<String, String>>): Map<String, MessageAttribute> {
+        fun parse(attributes: List<Map.Entry<String, String>>): Map<String, MessageAttribute> {
             val pattern = ATTRIBUTE_PATTERN.toRegex()
             val entryNumbers = attributes.map { attribute ->
                 val match = pattern.matchEntire(attribute.key)
