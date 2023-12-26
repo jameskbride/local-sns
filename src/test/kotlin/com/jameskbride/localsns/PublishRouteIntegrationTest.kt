@@ -1,6 +1,7 @@
 package com.jameskbride.localsns
 
 import com.google.gson.Gson
+import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.MainVerticle
 import com.typesafe.config.Config
@@ -173,7 +174,9 @@ class PublishRouteIntegrationTest: BaseTest() {
         val request = publishRequest(
             topic,
             message,
-            mapOf("status" to "not_sent")
+            messageAttributes = listOf(
+                MessageAttribute("status", "not_sent")
+            )
         )
         snsClient.publish(request)
 
@@ -207,9 +210,9 @@ class PublishRouteIntegrationTest: BaseTest() {
         val request = publishRequest(
             topic,
             message,
-            mapOf(
-                "status" to "not_sent",
-                "type" to "notification",
+            messageAttributes = listOf(
+                MessageAttribute("status", "not_sent"),
+                MessageAttribute("type", "notification"),
             )
         )
         snsClient.publish(request)
@@ -244,10 +247,10 @@ class PublishRouteIntegrationTest: BaseTest() {
         val request = publishRequest(
             topic,
             message,
-            mapOf(
-                "status" to "not_sent",
-                "amount" to "5.0",
-                "sold" to "true"
+            messageAttributes = listOf(
+                MessageAttribute("status", "not_sent"),
+                MessageAttribute("amount", "5.0"),
+                MessageAttribute("sold", "true")
             )
         )
         snsClient.publish(request)
@@ -460,17 +463,17 @@ class PublishRouteIntegrationTest: BaseTest() {
         val endpoint = createQueue(queueName)
         subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
-        val messageAttributes = mapOf(
-            "first" to "firstValue",
-            "second" to "secondValue"
+        val messageAttributes = listOf(
+            MessageAttribute("first", "firstValue"),
+            MessageAttribute("second", "secondValue")
         )
 
-        val request = publishRequest(topic, message, messageAttributes)
+        val request = publishRequest(topic, message, messageAttributes = messageAttributes)
 
         snsClient.publish(request)
 
         val queueUrl = createQueueUrl("with-attributes")
-        startReceivingMessages(queueUrl, messageAttributes.keys) { response ->
+        startReceivingMessages(queueUrl, messageAttributes.map { it.name }.toSet()) { response ->
             val messages = response.messages()
             if (messages.any {
                     val jsonBody = JsonObject(it.body())
@@ -736,17 +739,18 @@ class PublishRouteIntegrationTest: BaseTest() {
     private fun publishRequest(
         topic: Topic,
         message: String,
-        messageAttributes: Map<String, String> = mapOf(),
-        useTargetArn:Boolean = false,
+        messageAttributes: List<MessageAttribute> = listOf(),
+        useTargetArn: Boolean = false,
         messageStructure: String? = null,
     ): PublishRequest? {
-        val attributes =
-            messageAttributes.map { it.key to MessageAttributeValue.builder()
-                .apply {
-                    stringValue(it.value)
-                    dataType("String")
-                }.build()
-            }.toMap()
+        val parsedAttributes =
+            messageAttributes.associate {
+                it.name to MessageAttributeValue.builder()
+                    .apply {
+                        stringValue(it.value)
+                        dataType(it.dataType)
+                    }.build()
+            }
         return PublishRequest.builder()
             .apply {
                 if (useTargetArn) {
@@ -758,7 +762,7 @@ class PublishRouteIntegrationTest: BaseTest() {
                 if (messageStructure != null) {
                     messageStructure(messageStructure)
                 }
-                messageAttributes(attributes)
+                messageAttributes(parsedAttributes)
             }.build()
 
     }
