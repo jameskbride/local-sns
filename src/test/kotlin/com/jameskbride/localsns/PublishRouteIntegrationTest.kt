@@ -194,9 +194,9 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "filter-policy-multiple-queue"
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val type:List<String>): Serializable
+        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
         val gson = Gson()
-        val filterPolicy = FilterPolicy(status=listOf("not_sent"), type=listOf("notification"))
         subscribe(
             topic.arn,
             endpoint,
@@ -212,13 +212,14 @@ class PublishRouteIntegrationTest: BaseTest() {
             message,
             messageAttributes = listOf(
                 MessageAttribute("status", "not_sent"),
-                MessageAttribute("type", "notification"),
+                MessageAttribute("amount", "10.5", dataType = "Number"),
+                MessageAttribute("sold", "true"),
             )
         )
         snsClient.publish(request)
 
         val queueUrl = createQueueUrl(queueName)
-        startReceivingMessages(queueUrl, setOf("status")) { response ->
+        startReceivingMessages(queueUrl, setOf("status", "amount", "sold")) { response ->
             val messages = response.messages()
             if (messages.isNotEmpty()) {
                 testContext.completeNow()
@@ -232,8 +233,8 @@ class PublishRouteIntegrationTest: BaseTest() {
         val queueName = "filter-policy-messagebody-nomatch-queue"
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
-        val gson = Gson()
         val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
+        val gson = Gson()
         subscribe(
             topic.arn,
             endpoint,

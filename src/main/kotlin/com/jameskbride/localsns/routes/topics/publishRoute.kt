@@ -206,9 +206,22 @@ private fun matchesFilterPolicy(
         if (!messageAttributes.containsKey(it.key)) {
             false
         } else {
-            val permittedValues = it.value as List<String>
+            val permittedValues = it.value as List<*>
             val messageAttribute = messageAttributes[it.key]
-            permittedValues.contains(messageAttribute!!.value)
+            when (messageAttribute!!.dataType) {
+                "Number" -> {
+                    val parsedAttribute = messageAttribute.value.toDouble()
+                    permittedValues.contains(parsedAttribute)
+                }
+                else -> {
+                    permittedValues.any {permittedValue ->
+                        when (permittedValue) {
+                            (permittedValue is Boolean) -> permittedValue.toString() == messageAttribute.value
+                            else -> permittedValue == messageAttribute.value
+                        }
+                    }
+                }
+            }
         }
     }
     return matched
