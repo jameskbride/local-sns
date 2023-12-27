@@ -22,6 +22,7 @@ class Main {
         fun main(args: Array<String>) {
             configureObjectMappers()
             val config = ConfigFactory.load()
+            logger.info("Starting local-sns-${config.getValue("version").unwrapped()}")
             val vertx = Vertx.vertx()
             val dbPath = getDbPath(config)
             vertx.fileSystem()
