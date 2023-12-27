@@ -2,6 +2,8 @@ DB_PATH := ./db.json
 
 TAG = dev
 
+JAR ?= $(wildcard build/libs/local-sns-*.jar)
+
 run-dev:
 	DB_PATH=$(DB_PATH) ./gradlew run
 

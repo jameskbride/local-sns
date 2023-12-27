@@ -1,8 +1,16 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.tasks.testing.logging.TestLogEvent.*
-import org.gradle.internal.classpath.Instrumented.systemProperty
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.jetbrains.kotlin.gradle.tasks.KotlinTest
+import com.typesafe.config.ConfigFactory
+
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath("com.typesafe:config:1.4.2")
+  }
+}
 
 plugins {
   kotlin ("jvm") version "1.9.0"
@@ -11,7 +19,8 @@ plugins {
 }
 
 group = "com.jameskbride.localsns"
-version = project.version
+val typesafeConf = ConfigFactory.parseFile(File("src/main/resources/application.conf"))
+version = typesafeConf.getString("version")
 
 repositories {
   mavenCentral()
