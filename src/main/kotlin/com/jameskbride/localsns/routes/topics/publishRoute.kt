@@ -24,7 +24,7 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val message = getFormAttribute(ctx, "Message")
     val messageStructure = getFormAttribute(ctx, "MessageStructure")
     val formAttributes = ctx.request().formAttributes()
-    logger.info("MessageAttributes passed to publish: $formAttributes")
+    logger.debug("MessageAttributes passed to publish: {}", formAttributes)
     val attributes = formAttributes
         .filter { it.key.startsWith("MessageAttributes.entry") }
     val vertx = ctx.vertx()
@@ -137,7 +137,6 @@ private fun publishBasicMessage(
 ) {
     subscriptions.forEach { subscription ->
         try {
-            logger.info("Message to publish: $message")
             publishMessage(subscription, message, messageAttributes, producerTemplate, logger)
         } catch (e: Exception) {
             logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
@@ -284,12 +283,7 @@ private fun publishToLambda(
     val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
     val event = LambdaEvent(listOf(record))
     val messageToPublish = gson.toJson(event)
-    producer.asyncRequestBodyAndHeaders(
-        subscription.decodedEndpointUrl(),
-        messageToPublish,
-        headers + mapOf("Content-Type" to "application/json")
-    )
-        .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
+    publish(subscription, messageToPublish, headers + mapOf("Content-Type" to "application/json"), producer, logger)
 }
 
 private fun publishToHttp(
@@ -334,6 +328,7 @@ private fun publish(
     producer: ProducerTemplate,
     logger: Logger
 ) {
+    logger.info("Publishing to subscription: ${subscription.arn}: message: $message, headers: $headers")
     producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), message, headers)
         .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
 }
