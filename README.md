@@ -71,7 +71,8 @@ Example: `aws2-sqs://{{env:QUEUE_NAME}}?amazonSQSEndpoint={{env:SQS_ENDPOINT}}&.
 Tested with [elasticmq](https://github.com/adamw/elasticmq).
 
 ```
-docker run -d -p 9911:9911 -v "$PWD/example/config":/etc/sns jameskbride/local-sns
+cd example
+docker-compose up
 ```
 
 ## Development

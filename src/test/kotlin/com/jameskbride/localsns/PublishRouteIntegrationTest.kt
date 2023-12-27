@@ -1,5 +1,7 @@
 package com.jameskbride.localsns
 
+import com.google.gson.Gson
+import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.MainVerticle
 import com.typesafe.config.Config
@@ -34,10 +36,6 @@ import java.io.Serializable
 import java.net.URI
 
 private const val ELASTIC_MQ_SERVER_URL = "http://localhost:9324/000000000000"
-
-fun createQueueUrl(queueName: String): String {
-    return "$ELASTIC_MQ_SERVER_URL/$queueName"
-}
 
 @ExtendWith(VertxExtension::class)
 class PublishRouteIntegrationTest: BaseTest() {
@@ -125,6 +123,291 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
+    fun `FilterPolicy MessageAttributes - it does not publish when message attributes do not match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-donotmatch-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>): Serializable
+        val gson = Gson()
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy)
+            )
+        )
+        val message = "Hello, SNS!"
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.failNow("Message was not filtered")
+            }
+            testContext.completeNow()
+        }
+
+        val request = publishRequest(topic, message)
+        snsClient.publish(request)
+    }
+
+    @Test
+    fun `FilterPolicy MessageAttributes - it does publish when message attributes match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-doespublish-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>): Serializable
+        val gson = Gson()
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy)
+            )
+        )
+        val message = "Hello, SNS!"
+
+        val request = publishRequest(
+            topic,
+            message,
+            messageAttributes = listOf(
+                MessageAttribute("status", "not_sent")
+            )
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("status")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
+    fun `FilterPolicy MessageAttributes - it does publish when multiple message attributes match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-multiple-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
+        val gson = Gson()
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy)
+            )
+        )
+        val message = "Hello, SNS!"
+
+        val request = publishRequest(
+            topic,
+            message,
+            messageAttributes = listOf(
+                MessageAttribute("status", "not_sent"),
+                MessageAttribute("amount", "10.5", dataType = "Number"),
+                MessageAttribute("sold", "true"),
+            )
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("status", "amount", "sold")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
+    fun `FilterPolicy MessageAttributes - it does not publish when one or more attributes do not match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-messagebody-nomatch-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
+        val gson = Gson()
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy)
+            )
+        )
+        val message = "Hello, SNS!"
+
+        val request = publishRequest(
+            topic,
+            message,
+            messageAttributes = listOf(
+                MessageAttribute("status", "not_sent"),
+                MessageAttribute("amount", "5.0"),
+                MessageAttribute("sold", "true")
+            )
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("status")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.failNow("Message was not filtered")
+            } else {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
+    fun `FilterPolicy MessageBody - it does not publish when message body attributes do not match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-messagebody-nomatch-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>): Serializable
+        val gson = Gson()
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy),
+                "FilterPolicyScope" to "MessageBody"
+            )
+        )
+        data class Message(val value:String)
+        val message = Message(value="sent")
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.failNow("Message was not filtered")
+            }
+            testContext.completeNow()
+        }
+
+        val request = publishRequest(topic, gson.toJson(message))
+        snsClient.publish(request)
+    }
+
+    @Test
+    fun `FilterPolicy MessageBody - it does publish when message body attributes match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-messagebody-doesmatch-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>): Serializable
+        val gson = Gson()
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy),
+                "FilterPolicyScope" to "MessageBody",
+            )
+        )
+        data class Message(val status:String)
+        val message = Message(status="not_sent")
+
+        val request = publishRequest(
+            topic,
+            gson.toJson(message),
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("status")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
+    fun `FilterPolicy MessageBody - it does publish when multiple message body attributes match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-messagebody-multiple-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
+        val gson = Gson()
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(5.0), sold=listOf(true))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy),
+                "FilterPolicyScope" to "MessageBody",
+            )
+        )
+        data class Message(val status:String, val amount:Double, val sold:Boolean)
+        val message = Message(status="not_sent", amount=5.0, sold=true)
+
+        val request = publishRequest(
+            topic,
+            gson.toJson(message),
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("status")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
+    fun `FilterPolicy MessageBody - it does not publish when one or more message body attributes do not match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-messagebody-nomatch-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
+        val gson = Gson()
+        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to gson.toJson(filterPolicy),
+                "FilterPolicyScope" to "MessageBody",
+            )
+        )
+        data class Message(val status:String, val amount:Double, val sold:Boolean)
+        val message = Message(status="not_sent", amount=7.0, sold=false)
+
+        val request = publishRequest(
+            topic,
+            gson.toJson(message),
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("status")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.failNow("Message was not filtered")
+            } else {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
     fun `it can publish raw messages to sqs`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         val queueName = "raw-queue"
@@ -181,17 +464,17 @@ class PublishRouteIntegrationTest: BaseTest() {
         val endpoint = createQueue(queueName)
         subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
-        val messageAttributes = mapOf(
-            "first" to "firstValue",
-            "second" to "secondValue"
+        val messageAttributes = listOf(
+            MessageAttribute("first", "firstValue"),
+            MessageAttribute("second", "secondValue")
         )
 
-        val request = publishRequest(topic, message, messageAttributes)
+        val request = publishRequest(topic, message, messageAttributes = messageAttributes)
 
         snsClient.publish(request)
 
         val queueUrl = createQueueUrl("with-attributes")
-        startReceivingMessages(queueUrl, messageAttributes.keys) { response ->
+        startReceivingMessages(queueUrl, messageAttributes.map { it.name }.toSet()) { response ->
             val messages = response.messages()
             if (messages.any {
                     val jsonBody = JsonObject(it.body())
@@ -457,12 +740,18 @@ class PublishRouteIntegrationTest: BaseTest() {
     private fun publishRequest(
         topic: Topic,
         message: String,
-        messageAttributes: Map<String, String> = mapOf(),
-        useTargetArn:Boolean = false,
+        messageAttributes: List<MessageAttribute> = listOf(),
+        useTargetArn: Boolean = false,
         messageStructure: String? = null,
     ): PublishRequest? {
-        val attributes =
-            messageAttributes.map { it.key to MessageAttributeValue.builder().stringValue(it.value).build() }.toMap()
+        val parsedAttributes =
+            messageAttributes.associate {
+                it.name to MessageAttributeValue.builder()
+                    .apply {
+                        stringValue(it.value)
+                        dataType(it.dataType)
+                    }.build()
+            }
         return PublishRequest.builder()
             .apply {
                 if (useTargetArn) {
@@ -474,7 +763,7 @@ class PublishRouteIntegrationTest: BaseTest() {
                 if (messageStructure != null) {
                     messageStructure(messageStructure)
                 }
-                messageAttributes(attributes)
+                messageAttributes(parsedAttributes)
             }.build()
 
     }

@@ -4,9 +4,9 @@ import java.io.Serializable
 
 private const val ATTRIBUTE_PATTERN = ".*Attributes\\.entry\\.(\\d+)\\.(.*?)"
 
-data class MessageAttribute(val name:String, val value:String): Serializable {
+data class MessageAttribute(val name:String, val value:String, val dataType:String = "String"): Serializable {
     companion object {
-        fun parse(attributes: List<MutableMap.MutableEntry<String, String>>): Map<String, MessageAttribute> {
+        fun parse(attributes: List<Map.Entry<String, String>>): Map<String, MessageAttribute> {
             val pattern = ATTRIBUTE_PATTERN.toRegex()
             val entryNumbers = attributes.map { attribute ->
                 val match = pattern.matchEntire(attribute.key)
@@ -24,7 +24,12 @@ data class MessageAttribute(val name:String, val value:String): Serializable {
                     it.key.matches(namePattern.toRegex())
                 }!!.value
 
-                mapOf(name to MessageAttribute(name, value))
+                val dataType = attributes.find {
+                    val namePattern = ".*Attributes\\.entry\\.$entryNumber.Value.DataType"
+                    it.key.matches(namePattern.toRegex())
+                }!!.value
+
+                mapOf(name to MessageAttribute(name, value, dataType))
             }.fold(mapOf<String, MessageAttribute>()) { acc, map -> acc + map }
 
             return messageAttributes

@@ -6,16 +6,33 @@
     "owner" : "",
     "topicArn" : "arn:aws:sns:us-east-1:1465414804035:test1",
     "protocol" : "sqs",
-    "endpoint" : "aws2-sqs://queue1?accessKey=xxx&secretKey=xxx&region=us-east-1&trustAllCertificates=true&overrideEndpoint=true&uriEndpointOverride=http://sqs:9324"
+    "endpoint" : "aws2-sqs://queue1?accessKey=xxx&secretKey=xxx&region=us-east-1&trustAllCertificates=true&overrideEndpoint=true&uriEndpointOverride=http://sqs:9324",
+    "subscriptionAttributes" : {
+      "FilterPolicy" : "{\"status\": [\"not_sent\", \"resend\"], \"amount\": [10.5], \"sold\": [true] }",
+      "FilterPolicyScope" : "MessageBody"
+    }
   }, {
     "arn" : "6df4ed2b-a650-4f7c-910a-1a89c7cae5a6",
     "owner" : "",
     "topicArn" : "arn:aws:sns:us-east-1:1465414804035:test1",
     "protocol" : "file",
-    "endpoint" : "file://tmp/logs?fileName=messages.log&fileExist=Append&appendChars=\\n"
+    "endpoint" : "file://tmp/logs?fileName=messages.log&fileExist=Append&appendChars=\\n",
+    "subscriptionAttributes" : {
+      "FilterPolicy" : "{\"status\": [\"not_sent\", \"resend\"], \"amount\": [10.5], \"sold\": [true] }",
+      "RawMessageDelivery" : "true"
+    }
+  }, {
+    "arn" : "25da5e63-d5d3-469d-9e0c-e33539948bd1",
+    "owner" : "",
+    "topicArn" : "arn:aws:sns:us-east-1:1465414804035:test2",
+    "protocol" : "file",
+    "endpoint" : "file://tmp/logs?fileName=no-attributes.log&fileExist=Append&appendChars=\\n"
   } ],
   "topics" : [ {
     "arn" : "arn:aws:sns:us-east-1:1465414804035:test1",
     "name" : "test1"
+  }, {
+    "arn" : "arn:aws:sns:us-east-1:1465414804035:test2",
+    "name" : "test2"
   } ]
 }

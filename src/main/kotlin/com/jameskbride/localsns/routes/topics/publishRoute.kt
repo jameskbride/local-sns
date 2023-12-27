@@ -3,6 +3,7 @@ package com.jameskbride.localsns.routes.topics
 import com.google.gson.Gson
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.*
+import com.jameskbride.localsns.models.SubscriptionAttribute.Companion.FILTER_POLICY
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.get
@@ -22,9 +23,10 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val topicArn = getTopicArn(topicArnFormAttribute, targetArnFormAttribute)
     val message = getFormAttribute(ctx, "Message")
     val messageStructure = getFormAttribute(ctx, "MessageStructure")
-    val attributes = ctx.request().formAttributes()
+    val formAttributes = ctx.request().formAttributes()
+    logger.debug("MessageAttributes passed to publish: {}", formAttributes)
+    val attributes = formAttributes
         .filter { it.key.startsWith("MessageAttributes.entry") }
-        .filterNot { it.key.matches(".*\\.DataType.*".toRegex()) }
     val vertx = ctx.vertx()
 
     if (topicArn == null) {
@@ -135,7 +137,6 @@ private fun publishBasicMessage(
 ) {
     subscriptions.forEach { subscription ->
         try {
-            logger.info("Message to publish: $message")
             publishMessage(subscription, message, messageAttributes, producerTemplate, logger)
         } catch (e: Exception) {
             logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
@@ -154,6 +155,17 @@ private fun publishMessage(
     producer: ProducerTemplate,
     logger: Logger
 ) {
+    if (subscription.subscriptionAttributes.containsKey(FILTER_POLICY)) {
+        val filterPolicyScope = subscription.subscriptionAttributes.get("FilterPolicyScope")
+        val match = when (filterPolicyScope) {
+            "MessageBody" -> matchesFilterPolicy(subscription, message)
+            else -> matchesFilterPolicy(subscription, messageAttributes)
+        }
+        if (!match) {
+            return
+        }
+    }
+
     val headers = messageAttributes.map { it.key to it.value.value }.toMap() +
             mapOf(
                 "x-amz-sns-message-type" to "Notification",
@@ -181,6 +193,53 @@ private fun publishMessage(
             publishAllowingRawMessage(subscription, message, headers, producer, logger)
         }
     }
+}
+
+private fun matchesFilterPolicy(
+    subscription: Subscription,
+    messageAttributes: Map<String, MessageAttribute>
+): Boolean {
+    val filterPolicySubscriptionAttribute = subscription.subscriptionAttributes[FILTER_POLICY]
+    val filterPolicy = JsonObject(filterPolicySubscriptionAttribute)
+    val matched = filterPolicy.map.all {
+        if (!messageAttributes.containsKey(it.key)) {
+            false
+        } else {
+            val permittedValues = it.value as List<*>
+            val messageAttribute = messageAttributes[it.key]
+            when (messageAttribute!!.dataType) {
+                "Number" -> {
+                    val parsedAttribute = messageAttribute.value.toDouble()
+                    permittedValues.contains(parsedAttribute)
+                }
+                else -> {
+                    permittedValues.any {permittedValue ->
+                        when (permittedValue) {
+                            (permittedValue is Boolean) -> permittedValue.toString() == messageAttribute.value
+                            else -> permittedValue == messageAttribute.value
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return matched
+}
+
+private fun matchesFilterPolicy(subscription: Subscription, message:String): Boolean {
+    val filterPolicySubscriptionAttribute = subscription.subscriptionAttributes[FILTER_POLICY]
+    val filterPolicy = JsonObject(filterPolicySubscriptionAttribute)
+    val messageJson = JsonObject(message)
+    val matched = filterPolicy.map.all {
+        if (!messageJson.containsKey(it.key)) {
+            false
+        } else {
+            val permittedValues = it.value as List<*>
+            val messageAttribute = messageJson.getValue(it.key)
+            permittedValues.contains(messageAttribute!!)
+        }
+    }
+    return matched
 }
 
 private fun publishToSqs(
@@ -224,12 +283,7 @@ private fun publishToLambda(
     val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
     val event = LambdaEvent(listOf(record))
     val messageToPublish = gson.toJson(event)
-    producer.asyncRequestBodyAndHeaders(
-        subscription.decodedEndpointUrl(),
-        messageToPublish,
-        headers + mapOf("Content-Type" to "application/json")
-    )
-        .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
+    publish(subscription, messageToPublish, headers + mapOf("Content-Type" to "application/json"), producer, logger)
 }
 
 private fun publishToHttp(
@@ -274,6 +328,7 @@ private fun publish(
     producer: ProducerTemplate,
     logger: Logger
 ) {
+    logger.info("Publishing to subscription: ${subscription.arn}: message: $message, headers: $headers")
     producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), message, headers)
         .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
 }
