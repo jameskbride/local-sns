@@ -50,7 +50,7 @@ dependencies {
   implementation("org.apache.camel:camel-slack:$camelVersion")
   implementation("org.apache.camel:camel-aws2-lambda:$camelVersion")
   implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
-  implementation("com.typesafe:config:1.4.2")
+  implementation("com.typesafe:config:1.4.3")
   implementation("org.apache.logging.log4j:log4j-core:2.22.1")
   implementation("org.apache.logging.log4j:log4j-api:2.22.1")
   implementation("com.google.code.gson:gson:2.10.1")
