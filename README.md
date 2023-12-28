@@ -16,7 +16,7 @@ Fake Amazon Simple Notification Service (SNS) for local development. Supports:
 
 ### Docker
 
-Based on the `openjdk:11.0.13-jre-slim` image. Run it with the command:
+Based on the `amazoncorretto:11.0.21-alpine` image. Run it with the command:
 ```
 docker run -d -p 9911:9911 jameskbride/local-sns
 ```
