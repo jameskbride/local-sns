@@ -59,7 +59,7 @@ dependencies {
   testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
   testImplementation("org.danilopianini:khttp:1.4.2")
   testImplementation("org.jsoup:jsoup:1.16.1")
-  testImplementation("org.elasticmq:elasticmq-server_2.13:1.4.4")
+  testImplementation("org.elasticmq:elasticmq-server_3:1.5.4")
   testImplementation("software.amazon.awssdk:sns:2.21.0")
   testImplementation("software.amazon.awssdk:sqs:2.21.0")
 
