@@ -51,8 +51,8 @@ dependencies {
   implementation("org.apache.camel:camel-slack:$camelVersion")
   implementation("org.apache.camel:camel-aws2-lambda:$camelVersion")
   implementation("com.typesafe:config:1.4.2")
-  implementation("org.apache.logging.log4j:log4j-core:2.20.0")
-  implementation("org.apache.logging.log4j:log4j-api:2.20.0")
+  implementation("org.apache.logging.log4j:log4j-core:2.22.1")
+  implementation("org.apache.logging.log4j:log4j-api:2.22.1")
   implementation("com.google.code.gson:gson:2.10.1")
 
   testImplementation("io.vertx:vertx-junit5:$vertxVersion")
