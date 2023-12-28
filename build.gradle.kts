@@ -26,7 +26,7 @@ repositories {
   mavenCentral()
 }
 
-val vertxVersion = "4.4.4"
+val vertxVersion = "4.5.1"
 val camelVersion = "3.21.0"
 val junitJupiterVersion = "5.9.2"
 
@@ -42,7 +42,6 @@ dependencies {
   implementation("io.vertx:vertx-web:$vertxVersion")
   implementation("io.vertx:vertx-camel-bridge:$vertxVersion")
   implementation("io.vertx:vertx-lang-kotlin:$vertxVersion")
-  implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
   implementation("org.apache.camel:camel-core:$camelVersion")
   implementation("org.apache.camel:camel-file:$camelVersion")
   implementation("org.apache.camel:camel-aws2-sqs:$camelVersion")
@@ -50,16 +49,17 @@ dependencies {
   implementation("org.apache.camel:camel-rabbitmq:$camelVersion")
   implementation("org.apache.camel:camel-slack:$camelVersion")
   implementation("org.apache.camel:camel-aws2-lambda:$camelVersion")
-  implementation("com.typesafe:config:1.4.2")
-  implementation("org.apache.logging.log4j:log4j-core:2.20.0")
-  implementation("org.apache.logging.log4j:log4j-api:2.20.0")
+  implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
+  implementation("com.typesafe:config:1.4.3")
+  implementation("org.apache.logging.log4j:log4j-core:2.22.1")
+  implementation("org.apache.logging.log4j:log4j-api:2.22.1")
   implementation("com.google.code.gson:gson:2.10.1")
 
-  testImplementation("io.vertx:vertx-junit5:4.4.5")
+  testImplementation("io.vertx:vertx-junit5:$vertxVersion")
   testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
-  testImplementation("org.danilopianini:khttp:1.3.2")
-  testImplementation("org.jsoup:jsoup:1.16.1")
-  testImplementation("org.elasticmq:elasticmq-server_2.13:1.4.4")
+  testImplementation("org.danilopianini:khttp:1.4.2")
+  testImplementation("org.jsoup:jsoup:1.17.1")
+  testImplementation("org.elasticmq:elasticmq-server_3:1.5.4")
   testImplementation("software.amazon.awssdk:sns:2.21.0")
   testImplementation("software.amazon.awssdk:sqs:2.21.0")
 
