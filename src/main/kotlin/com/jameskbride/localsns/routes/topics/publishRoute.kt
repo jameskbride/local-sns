@@ -210,15 +210,10 @@ private fun matchesFilterPolicy(
             when (messageAttribute!!.dataType) {
                 "Number" -> {
                     val parsedAttribute = messageAttribute.value.toDouble()
-                    permittedValues.contains(parsedAttribute)
+                    attributeMatchesPolicy(permittedValues, parsedAttribute)
                 }
                 else -> {
-                    permittedValues.any {permittedValue ->
-                        when (permittedValue) {
-                            (permittedValue is Boolean) -> permittedValue.toString() == messageAttribute.value
-                            else -> permittedValue == messageAttribute.value
-                        }
-                    }
+                    attributeMatchesPolicy(permittedValues, messageAttribute.value)
                 }
             }
         }
@@ -230,16 +225,72 @@ private fun matchesFilterPolicy(subscription: Subscription, message:String): Boo
     val filterPolicySubscriptionAttribute = subscription.subscriptionAttributes[FILTER_POLICY]
     val filterPolicy = JsonObject(filterPolicySubscriptionAttribute)
     val messageJson = JsonObject(message)
-    val matched = filterPolicy.map.all {
-        if (!messageJson.containsKey(it.key)) {
+    val matched = filterPolicy.map.all { filterPolicyAttribute ->
+        if (!messageJson.containsKey(filterPolicyAttribute.key)) {
             false
         } else {
-            val permittedValues = it.value as List<*>
-            val messageAttribute = messageJson.getValue(it.key)
-            permittedValues.contains(messageAttribute!!)
+            val attribute = messageJson.getValue(filterPolicyAttribute.key)
+            attributeMatchesPolicy(filterPolicyAttribute.value as List<*>, attribute)
         }
     }
     return matched
+}
+
+private fun attributeMatchesPolicy(
+    attributeMatchPolicy: List<*>,
+    value: Any?
+): Boolean {
+    return attributeMatchPolicy.any {
+        when (val permittedValue = attributeMatchPolicy.firstOrNull()) {
+            is String -> {
+                stringMatches(attributeMatchPolicy, value)
+            }
+
+            is LinkedHashMap<*, *> -> {
+                if (permittedValue.containsKey("numeric")) {
+                    numericMatches(permittedValue, value)
+                } else false
+            }
+
+            is Boolean -> {
+                booleanMatches(permittedValue, value)
+            }
+
+            else -> false
+        }
+    }
+}
+
+private fun numericMatches(permittedValue: LinkedHashMap<*, *>, attribute: Any?): Boolean {
+    val matchParams = permittedValue["numeric"] as List<*>
+    return when (matchParams.size) {
+        2 -> {
+            numberMatches(matchParams, attribute)
+        }
+
+        4 -> {
+            false
+        }
+
+        else -> false
+    }
+}
+
+private fun booleanMatches(permittedValue: Any?, attribute: Any?) = permittedValue.toString() == attribute.toString()
+
+private fun stringMatches(permittedValues: List<*>, attribute: Any?) =
+    permittedValues.map { it.toString() }.contains(attribute)
+
+private fun numberMatches(matchParams: List<*>, value: Any?): Boolean {
+    val operator = matchParams[0]
+    return when (operator) {
+        "=" -> numEquals(value as Double, matchParams[1] as Double)
+        else -> false
+    }
+}
+
+private fun numEquals(messageAttribute: Double, filterPolicyValue: Double):Boolean {
+    return messageAttribute == filterPolicyValue
 }
 
 private fun publishToSqs(
