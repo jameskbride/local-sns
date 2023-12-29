@@ -78,6 +78,12 @@ docker-compose up
 ## Development
 This project uses Kotlin, [Vert.X](https://vertx.io), and [Apache Camel](https://camel.apache.org) for message routing.
 
+Be sure to read the [SNS documentation](https://docs.aws.amazon.com/sns/latest/dg/welcome.html). The [API docs](https://docs.aws.amazon.com/sns/latest/api/API_Operations.html) in particular are useful.
+
+It's also useful to run the equivalent `aws sns` CLI command with the `--debug` flag to better understand what the request and response payloads look like. 
+
+You can also execute an `aws sns <command> --endpoint-url <local-sns url>` command to point the AWS CLI to the `local-sns` instance.
+
 ### Unit and Integration tests
 `./gradlew test`
 
