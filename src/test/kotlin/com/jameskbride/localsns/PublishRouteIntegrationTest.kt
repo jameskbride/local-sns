@@ -9,6 +9,7 @@ import com.typesafe.config.ConfigFactory
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
 import io.vertx.core.json.Json
+import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
 import io.vertx.junit5.VertxExtension
@@ -194,15 +195,53 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "filter-policy-multiple-queue"
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
-        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
-        val gson = Gson()
+        data class FilterPolicy(val status:List<String>, val amount:List<JsonObject>, val sold:List<Boolean>): Serializable
+        val numericMatch = buildNumericPolicy(listOf("=", 10.5))
+        val filterPolicy = JsonObject.mapFrom(FilterPolicy(status=listOf("not_sent"), amount=listOf(numericMatch), sold=listOf(true)))
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to gson.toJson(filterPolicy)
+                "FilterPolicy" to filterPolicy.toString()
+            )
+        )
+        val message = "Hello, SNS!"
+
+        val request = publishRequest(
+            topic,
+            message,
+            messageAttributes = listOf(
+                MessageAttribute("status", "not_sent"),
+                MessageAttribute("amount", "10.5", dataType = "Number"),
+                MessageAttribute("sold", "true"),
+            )
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("status", "amount", "sold")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
+    fun `FilterPolicy MessageAttributes - it does publish with exact numeric match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-multiple-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val amount:List<JsonObject>): Serializable
+        val numericMatch = buildNumericPolicy(listOf("=", 10.5))
+        val filterPolicy = JsonObject.mapFrom(FilterPolicy(amount=listOf(numericMatch)))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to filterPolicy.toString()
             )
         )
         val message = "Hello, SNS!"
@@ -340,21 +379,22 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "filter-policy-messagebody-multiple-queue"
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
-        val gson = Gson()
-        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(5.0), sold=listOf(true))
+        data class FilterPolicy(val status:List<String>, val amount:List<JsonObject>, val sold:List<Boolean>): Serializable
+        val numericMatch = buildNumericPolicy(listOf("=", 5.0))
+        val filterPolicy = JsonObject.mapFrom(FilterPolicy(status=listOf("not_sent"), amount=listOf(numericMatch), sold=listOf(true)))
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to gson.toJson(filterPolicy),
+                "FilterPolicy" to filterPolicy.toString(),
                 "FilterPolicyScope" to "MessageBody",
             )
         )
         data class Message(val status:String, val amount:Double, val sold:Boolean)
         val message = Message(status="not_sent", amount=5.0, sold=true)
 
+        val gson = Gson()
         val request = publishRequest(
             topic,
             gson.toJson(message),
@@ -370,14 +410,60 @@ class PublishRouteIntegrationTest: BaseTest() {
         }
     }
 
+    private fun buildNumericPolicy(params: List<Any>): JsonObject {
+        val numericMatch = JsonObject()
+        val matchParams = JsonArray()
+        params.forEach {
+            matchParams.add(it)
+        }
+        numericMatch.put("numeric", matchParams)
+        return numericMatch
+    }
+
+    @Test
+    fun `FilterPolicy MessageBody - it does publish with exact numeric match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = "filter-policy-messagebody-numeric-exact-queue"
+        val endpoint = createQueue(queueName)
+        data class FilterPolicy(val amount:List<JsonObject>): Serializable
+        val numericMatch = buildNumericPolicy(listOf("=", 5.0))
+        val filterPolicy = JsonObject.mapFrom(FilterPolicy(amount=listOf(numericMatch)))
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to filterPolicy.toString(),
+                "FilterPolicyScope" to "MessageBody",
+            )
+        )
+        data class Message(val status:String, val amount:Double, val sold:Boolean)
+        val message = Message(status="not_sent", amount=5.0, sold=true)
+
+        val gson = Gson()
+        val request = publishRequest(
+            topic,
+            gson.toJson(message),
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.completeNow()
+            }
+        }
+    }
+
     @Test
     fun `FilterPolicy MessageBody - it does not publish when one or more message body attributes do not match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         val queueName = "filter-policy-messagebody-nomatch-queue"
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
-        val gson = Gson()
         val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
+        val gson = Gson()
         subscribe(
             topic.arn,
             endpoint,
