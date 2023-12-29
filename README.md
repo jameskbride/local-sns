@@ -10,6 +10,7 @@ Fake Amazon Simple Notification Service (SNS) for local development. Supports:
 - Get/Set subscription attribute endpoints
 - Publish message
 - Subscription persistence to file, including subscription attributes
+- Subscription filtering (currently under development with some alpha features)
 - Integrations with (Fake-)SQS, File, HTTP, RabbitMQ, Slack, and Lambda
 
 ## Usage
@@ -74,6 +75,31 @@ Tested with [elasticmq](https://github.com/adamw/elasticmq).
 cd example
 docker-compose up
 ```
+
+## Features
+### Subscriptions
+#### Supported Subscription Attributes (See [SetSubscriptionAttributes](https://docs.aws.amazon.com/sns/latest/api/API_SetSubscriptionAttributes.html))
+* `RawMessageDelivery` - NOTE: Messages sent via a Slack endpoint are always sent raw.
+* `FilterPolicyScope` - Both `MessageBody` and `MessageAttributes` are supported (`MessageAttributes` is the default behavior).
+* `FilterPolicy` - Currently under development, supported for `MessageBody` and `MessageAttributes` with some limitations: 
+
+  | Feature                                                                                                                                                                                         | Supported                                                                                    |
+  |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+  | [Policy Complexity Constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html#subscription-filter-policy-common-constraints)                            | No                                                                                           |
+  | [Policy Constraints for MessageAttribute-based filtering](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html#subscription-filter-policy-payload-constraints) | Yes (only `String` and `Number`; `String.Array` is not currently supported)                  |
+  | [Nested Constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html#subscription-filter-policy-payload-constraints) for payload-based filtering          | No (local-sns only supports top-level attribute filtering for `MessageBody` filter policies) |
+  | [Exact String match](https://docs.aws.amazon.com/sns/latest/dg/string-value-matching.html#string-exact-matching)                                                                                | Yes                                                                                          |
+  | [String anything-but match](https://docs.aws.amazon.com/sns/latest/dg/string-value-matching.html#string-anything-but-matching)                                                                  | No                                                                                           |
+  | [String prefix match](https://docs.aws.amazon.com/sns/latest/dg/string-value-matching.html#string-prefix-matching)                                                                              | No                                                                                           |
+  | [String suffix match](https://docs.aws.amazon.com/sns/latest/dg/string-value-matching.html#ip-suffix-matching)                                                                                  | No                                                                                           |
+  | [IP Address match](https://docs.aws.amazon.com/sns/latest/dg/string-value-matching.html#ip-address-matching)                                                                                     | No                                                                                           |
+  | [Exact Number match](https://docs.aws.amazon.com/sns/latest/dg/numeric-value-matching.html#numeric-exact-matching)                                                                              | Yes                                                                                          |
+  | [Numeric anything-but match](https://docs.aws.amazon.com/sns/latest/dg/numeric-value-matching.html#numeric-anything-but-matching)                                                               | No                                                                                           |
+  | [Numeric Value Range match](https://docs.aws.amazon.com/sns/latest/dg/numeric-value-matching.html#numeric-value-range-matching)                                                                 | No                                                                                           |
+  | [And Logic](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html#subscription-filter-policy-payload-constraints)                                               | Yes                                                                                          |
+  | [Or Logic](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html#subscription-filter-policy-payload-constraints)                                                | Yes                                                                                          |
+  | [Or Operator](https://docs.aws.amazon.com/sns/latest/dg/and-or-logic.html#or-operator)                                                                                                          | No                                                                                           |
+  | [Key Matching](https://docs.aws.amazon.com/sns/latest/dg/attribute-key-matching.html)                                                                                                           | No                                                                                           |
 
 ## Development
 This project uses Kotlin, [Vert.X](https://vertx.io), and [Apache Camel](https://camel.apache.org) for message routing.
