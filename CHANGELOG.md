@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.0] - 2023-12-29
+### Added
+- Log the version on startup. [#14](https://github.com/jameskbride/local-sns/pull/14)
+- Basic support for FilterPolicy for both `MessageAttributes` and `MessageBody`. [#13](https://github.com/jameskbride/local-sns/pull/13)
+    - Allowing `FilterPolicy` subscription attribute.
+    - Allowing `FilterPolicyScope` subscription attribute.
+    - Exact String matching on `MessageAttributes` and `MessageBody`
+- Exact Number matching on `MessageAttributes` and `MessageBody`. [#18](https://github.com/jameskbride/local-sns/pull/18)
+
+### Changed
+- Dependency updates. [#16](https://github.com/jameskbride/local-sns/pull/16)
+- Replaced deprecated base docker image. [#17](https://github.com/jameskbride/local-sns/pull/17)
+- Adjust logging when publishing messages. [#13](https://github.com/jameskbride/local-sns/pull/13), [#19](https://github.com/jameskbride/local-sns/pull/19)
+
 ## [0.10.1-alpha] - 2023-11-24
 
 ### Changed
