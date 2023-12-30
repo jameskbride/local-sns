@@ -114,7 +114,7 @@ private fun publishJsonStructure(
                 } else {
                     messages["default"]
                 }
-                logger.info("Messages to publish: $messageToPublish")
+                logger.debug("Messages to publish: $messageToPublish")
                 publishMessage(subscription, messageToPublish as String, messageAttributes, producerTemplate, logger)
             } catch (e: Exception) {
                 logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
