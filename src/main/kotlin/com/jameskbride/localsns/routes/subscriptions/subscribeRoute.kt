@@ -8,6 +8,7 @@ import com.typesafe.config.ConfigFactory
 import io.vertx.ext.web.RoutingContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import java.net.URL
 import java.util.*
 import java.util.regex.Pattern
 
@@ -59,6 +60,18 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
+    val subscriptionEndpoint = if (protocol == "sqs" && (endpoint?.startsWith("http") == true || endpoint?.startsWith("https") == true)) {
+        val url = URL(endpoint)
+        val endpointProtocol = url.protocol
+        val endpointHost = url.host
+        val endpointPort = url.port
+        val endpointPath = url.path
+        val queueName = endpointPath.split("/").last()
+        buildSqsEndpoint(queueName, endpointProtocol, endpointHost, endpointPort)
+    } else {
+        endpoint
+    }
+
     val subscriptions = getSubscriptionsMap(vertx)!!
     val owner = getAwsAccountId(config = ConfigFactory.load())
     val subscription = Subscription(
@@ -66,7 +79,7 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         owner = owner,
         topicArn = topicArn,
         protocol = protocol,
-        endpoint = endpoint,
+        endpoint = subscriptionEndpoint,
         subscriptionAttributes = subscriptionAttributes
     )
     logger.info("Creating subscription: {}", subscription)
@@ -88,4 +101,19 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
               </SubscribeResponse>
             """.trimIndent()
         )
+}
+
+private fun buildSqsEndpoint(
+    queueName: String,
+    endpointProtocol: String?,
+    endpointHost: String?,
+    endpointPort: Int
+): String {
+    val queryParams =
+        "?accessKey=xxx&secretKey=xxx&region=us-east-1&trustAllCertificates=true&overrideEndpoint=true&uriEndpointOverride="
+    return if (endpointPort > -1) {
+        "aws2-sqs://$queueName$queryParams$endpointProtocol://$endpointHost:$endpointPort"
+    } else {
+        "aws2-sqs://$queueName$queryParams$endpointProtocol://$endpointHost"
+    }
 }
