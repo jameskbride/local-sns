@@ -43,7 +43,7 @@ class DatabaseVerticle: AbstractVerticle() {
                     vertx.eventBus().publish("configChangeComplete", "configChangeComplete")
                 }
                 .onFailure {
-                    logger.error("Unable to config at: $dbPath", it)
+                    logger.error("Unable to save config to: $dbPath", it)
                 }
         }
     }
