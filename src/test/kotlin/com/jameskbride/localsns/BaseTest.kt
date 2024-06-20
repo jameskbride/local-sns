@@ -3,6 +3,7 @@ package com.jameskbride.localsns
 import com.jameskbride.localsns.models.Topic
 import com.typesafe.config.ConfigFactory
 import khttp.post
+import khttp.get
 import khttp.responses.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
@@ -21,6 +22,11 @@ open class BaseTest {
             val httpPortEnv = config.getString("http.port")
             return "http://$httpInterface:$httpPortEnv/"
         }
+    }
+
+    fun getCurrentConfig(): Response {
+        val baseUrl = getBaseUrl()
+        return get("$baseUrl/config")
     }
 
     protected fun createValidArn(resourceName: String) =

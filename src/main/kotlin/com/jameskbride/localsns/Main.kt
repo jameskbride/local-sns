@@ -1,13 +1,10 @@
 package com.jameskbride.localsns
 
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.jameskbride.localsns.models.Configuration
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.AsyncResult
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
-import io.vertx.core.json.JsonObject
-import io.vertx.core.json.jackson.DatabindCodec
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -22,7 +19,12 @@ class Main {
         fun main(args: Array<String>) {
             configureObjectMappers()
             val config = ConfigFactory.load()
-            logger.info("Starting local-sns-${config.getValue("version").unwrapped()}")
+            val version = config.getValue("version").unwrapped()
+            logger.info("Starting local-sns-$version")
+            val httpInterface = getHttpInterface(config)
+            val port = getPort(config)
+            logger.info("Health endpoint: http://$httpInterface:$port/health")
+            logger.info("Configuration endpoint: http://${httpInterface}:$port/config")
             val vertx = Vertx.vertx()
             val dbPath = getDbPath(config)
             vertx.fileSystem()
@@ -72,18 +74,10 @@ class Main {
 
         private fun readConfiguration(result: AsyncResult<Buffer>): Configuration {
             val configFile = result.result()
-            val jsonConfig = JsonObject(configFile)
+            val jsonConfig = toJsonConfig(configFile)
             logger.info("Loading configuration: $jsonConfig")
 
             return jsonConfig.mapTo(Configuration::class.java)
-        }
-
-        private fun configureObjectMappers() {
-            val mapper = DatabindCodec.mapper()
-            mapper.registerKotlinModule()
-
-            val prettyMapper = DatabindCodec.prettyMapper()
-            prettyMapper.registerKotlinModule()
         }
     }
 }
