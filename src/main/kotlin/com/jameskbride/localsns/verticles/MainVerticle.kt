@@ -1,5 +1,8 @@
 package com.jameskbride.localsns.verticles
 
+import com.jameskbride.localsns.getHttpInterface
+import com.jameskbride.localsns.getPort
+import com.jameskbride.localsns.routes.configRoute
 import com.jameskbride.localsns.routes.getRoute
 import com.jameskbride.localsns.routes.healthRoute
 import com.typesafe.config.ConfigFactory
@@ -21,13 +24,11 @@ class MainVerticle : AbstractVerticle() {
     router.route().handler(BodyHandler.create())
     router.route("/").handler(getRoute)
     router.route("/health").handler(healthRoute)
+    router.route("/config").handler(configRoute)
 
     val config = ConfigFactory.load()
-    val httpInterface = System.getenv("HTTP_INTERFACE") ?: config.getString("http.interface")
-    val httpPortEnv = System.getenv("HTTP_PORT")
-    val port = if (httpPortEnv !== null) {
-      Integer.parseInt(httpPortEnv)
-    } else { config.getInt("http.port") }
+    val httpInterface = getHttpInterface(config)
+    val port = getPort(config)
 
     val socketAddress = inetSocketAddress(port, httpInterface)
 
