@@ -40,7 +40,7 @@ class DatabaseVerticleTest: BaseTest() {
             arn = createValidArn("subscription1"),
             owner="owner",
             protocol="sqs",
-            endpoint=createSqsEndpoint("queue1")
+            endpoint=createCamelSqsEndpoint("queue1")
         )
 
         val topics = getTopicsMap(vertx)!!
@@ -78,7 +78,7 @@ class DatabaseVerticleTest: BaseTest() {
             arn = createValidArn("subscription1"),
             owner="owner",
             protocol="sqs",
-            endpoint=createSqsEndpoint("queue1"),
+            endpoint=createCamelSqsEndpoint("queue1"),
             subscriptionAttributes = mapOf("RawMessageDelivery" to "true")
         )
 

@@ -61,12 +61,12 @@ class ListSubscriptionsByTopicRouteTest: BaseTest() {
     @Test
     fun `it returns success when there are subscriptions for a topic`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val endpoint1 = createSqsEndpoint("queue1")
+        val endpoint1 = createCamelSqsEndpoint("queue1")
         val subscribeResponse1 = subscribe(topic.arn, endpoint1, "sqs")
         val subscription1Arn = getSubscriptionArnFromResponse(subscribeResponse1)
 
         val topic2 = createTopicModel("topic2")
-        val endpoint2 = createSqsEndpoint("queue2")
+        val endpoint2 = createCamelSqsEndpoint("queue2")
         val subscribeResponse2 = subscribe(topic2.arn, endpoint2, "lambda")
         val subscription2Arn = getSubscriptionArnFromResponse(subscribeResponse2)
 

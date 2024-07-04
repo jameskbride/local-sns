@@ -28,7 +28,7 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it returns an error when AttributeName is missing`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createCamelSqsEndpoint("queue1"), "sqs"))
 
         val response = setSubscriptionAttributes(subscriptionArn, null, "value")
 
@@ -40,7 +40,7 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it returns an error when AttributeValue is missing`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createCamelSqsEndpoint("queue1"), "sqs"))
 
         val response = setSubscriptionAttributes(subscriptionArn, attributeName = null, "name")
 
@@ -52,7 +52,7 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it returns an error when RawMessageDelivery attribute value is invalid`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createCamelSqsEndpoint("queue1"), "sqs"))
 
         val response = setSubscriptionAttributes(subscriptionArn, attributeName = "RawMessageDelivery", "not true or false")
 
@@ -73,7 +73,7 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it returns success when the message attribute is set`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createCamelSqsEndpoint("queue1"), "sqs"))
 
         val response = setSubscriptionAttributes(subscriptionArn, "name", "value")
 
@@ -85,7 +85,7 @@ class SetSubscriptionAttributesRouteTest: BaseTest() {
     @Test
     fun `it triggers a database save when the message attribute is set`(vertx: Vertx, testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createSqsEndpoint("queue1"), "sqs"))
+        val subscriptionArn = getSubscriptionArnFromResponse(subscribe(topic.arn, createCamelSqsEndpoint("queue1"), "sqs"))
 
         vertx.eventBus().consumer<String>("configChange") {
             testContext.completeNow()

@@ -39,7 +39,7 @@ class UnsubscribeRouteTest: BaseTest() {
     @Test
     fun `it returns an error when subscription arn is invalid`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createSqsEndpoint("endpoint"), "sqs")
+        subscribe(topic.arn, createCamelSqsEndpoint("endpoint"), "sqs")
 
         val response = unsubscribe("bad arn")
 
@@ -51,7 +51,7 @@ class UnsubscribeRouteTest: BaseTest() {
     @Test
     fun `it returns an success when subscription exists`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionResponse = subscribe(topic.arn, createSqsEndpoint("endpoint"), "sqs")
+        val subscriptionResponse = subscribe(topic.arn, createCamelSqsEndpoint("endpoint"), "sqs")
         val subscriptionArn = getSubscriptionArnFromResponse(subscriptionResponse)
 
         val response = unsubscribe(subscriptionArn)
@@ -75,7 +75,7 @@ class UnsubscribeRouteTest: BaseTest() {
     @Test
     fun `it indicates a db change`(vertx: Vertx, testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val subscriptionResponse = subscribe(topic.arn, createSqsEndpoint("endpoint"), "sqs")
+        val subscriptionResponse = subscribe(topic.arn, createCamelSqsEndpoint("endpoint"), "sqs")
         val subscriptionArn = getSubscriptionArnFromResponse(subscriptionResponse)
 
         vertx.eventBus().consumer<String>("configChange") {

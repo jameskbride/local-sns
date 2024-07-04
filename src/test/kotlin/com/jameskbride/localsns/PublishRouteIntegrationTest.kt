@@ -522,7 +522,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = "target-arn-queue"
         createQueue(queueName)
-        val endpoint = createSqsEndpoint(queueName)
+        val endpoint = createCamelSqsEndpoint(queueName)
         subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
         val request = publishRequest(topic, message, useTargetArn = true)
@@ -588,7 +588,7 @@ class PublishRouteIntegrationTest: BaseTest() {
             it.build()
         }
 
-        return createSqsEndpoint(queueName)
+        return createCamelSqsEndpoint(queueName)
     }
 
     @Test
@@ -609,7 +609,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         }
 
         val topic = createTopicModel("httpTopic")
-        subscribe(topic.arn, createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"), "http")
+        subscribe(topic.arn, createCamelHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"), "http")
 
         val request = publishRequest(topic, message)
 
@@ -636,7 +636,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("httpTopic")
         subscribe(
             topic.arn,
-            createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"),
+            createCamelHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"),
             "http",
             mapOf("RawMessageDelivery" to "true")
         )
@@ -676,8 +676,8 @@ class PublishRouteIntegrationTest: BaseTest() {
         }
 
         val topic = createTopicModel("httpTopic")
-        subscribe(topic.arn, createHttpEndpoint("http://localhost:9933/testEndpoint1", method="POST"), "http")
-        subscribe(topic.arn, createHttpEndpoint("http://localhost:9933/testEndpoint2", method="POST"), "http")
+        subscribe(topic.arn, createCamelHttpEndpoint("http://localhost:9933/testEndpoint1", method="POST"), "http")
+        subscribe(topic.arn, createCamelHttpEndpoint("http://localhost:9933/testEndpoint2", method="POST"), "http")
 
         val request = publishRequest(topic, message)
 
@@ -702,8 +702,8 @@ class PublishRouteIntegrationTest: BaseTest() {
         }
 
         val topic = createTopicModel("httpTopic")
-        subscribe(topic.arn, createHttpEndpoint("http://invalidhost/", method="POST"), "http")
-        subscribe(topic.arn, createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"), "http")
+        subscribe(topic.arn, createCamelHttpEndpoint("http://invalidhost/", method="POST"), "http")
+        subscribe(topic.arn, createCamelHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"), "http")
 
         val request = publishRequest(topic, message)
 
@@ -732,7 +732,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         }
 
         val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"), "http")
+        subscribe(topic.arn, createCamelHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"), "http")
 
         val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
         snsClient.publish(request)
@@ -760,7 +760,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         subscribe(
             topic.arn,
-            createHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"),
+            createCamelHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"),
             "http",
             mapOf("RawMessageDelivery" to "true")
         )
