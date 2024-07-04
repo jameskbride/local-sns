@@ -32,11 +32,15 @@ open class BaseTest {
     protected fun createValidArn(resourceName: String) =
         "arn:aws:sns:us-east-1:123456789012:${resourceName}"
 
-    fun createSqsEndpoint(name: String): String {
+    fun createCamelSqsEndpoint(name: String): String {
         return "aws2-sqs://$name?accessKey=xxx&secretKey=xxx&region=us-east-1&trustAllCertificates=true&overrideEndpoint=true&uriEndpointOverride=http://localhost:9324/000000000000/$name&messageAttributeNames=first,second"
     }
 
-    fun createHttpEndpoint(uri: String, method: String = "POST"): String {
+    fun createHttpSqsEndpoint(name: String): String {
+        return "http://localhost:9324/000000000000/$name"
+    }
+
+    fun createCamelHttpEndpoint(uri: String, method: String = "POST"): String {
         return "$uri?httpMethod=$method"
     }
 

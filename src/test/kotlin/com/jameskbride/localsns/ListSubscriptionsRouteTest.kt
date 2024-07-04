@@ -30,7 +30,7 @@ class ListSubscriptionsRouteTest: BaseTest() {
     @Test
     fun `it returns subscriptions when they exist `(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val endpoint = createSqsEndpoint("queue1")
+        val endpoint = createCamelSqsEndpoint("queue1")
         val subscribeResponse1 = subscribe(topic.arn, endpoint, "sqs")
         val subscription1Arn = getSubscriptionArnFromResponse(subscribeResponse1)
 
@@ -56,7 +56,7 @@ class ListSubscriptionsRouteTest: BaseTest() {
     @Test
     fun `it returns lambda subscriptions when they exist `(testContext: VertxTestContext) {
         val topic = createTopicModel("topic2")
-        val endpoint = createSqsEndpoint("queue2")
+        val endpoint = createCamelSqsEndpoint("queue2")
         val subscribeResponse2 = subscribe(topic.arn, endpoint, "lambda")
         val subscription2Arn = getSubscriptionArnFromResponse(subscribeResponse2)
 
