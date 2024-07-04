@@ -72,10 +72,32 @@ class SubscribeRouteTest : BaseTest() {
     }
 
     @Test
-    fun `it can subscribe to a topic`(testContext: VertxTestContext) {
+    fun `it can subscribe to a topic`(vertx: Vertx, testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
+        val queueName = "queue1"
+        val camelSqsEndpoint = createCamelSqsEndpoint(queueName)
+        val config = ConfigFactory.load()
+        vertx.eventBus().consumer<String>("configChangeComplete") {
+            vertx.fileSystem()
+                .readFile(getDbOutputPath(config))
+                .onComplete { result ->
+                    val configFile = result.result()
+                    val jsonConfig = JsonObject(configFile)
 
-        val response = subscribe(topic.arn, createCamelSqsEndpoint("queue1"), "sqs")
+                    val configuration = jsonConfig.mapTo(Configuration::class.java)
+                    assertEquals(configuration.version, 1)
+                    assertTrue(configuration.topics.contains(topic))
+                    val foundSubscription = configuration.subscriptions
+                        .find { it.topicArn == topic.arn && it.protocol == "sqs" && it.endpoint == camelSqsEndpoint }
+                    if (foundSubscription == null) {
+                        testContext.failNow(IllegalStateException("Subscription not found"))
+                    }
+
+                    testContext.completeNow()
+                }
+        }
+
+        val response = subscribe(topic.arn, camelSqsEndpoint, "sqs")
 
         val subscriptionArn = getSubscriptionArnFromResponse(response)
         assertEquals(200, response.statusCode)
