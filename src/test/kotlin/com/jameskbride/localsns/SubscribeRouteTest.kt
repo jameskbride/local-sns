@@ -1,8 +1,11 @@
 package com.jameskbride.localsns
 
 import com.jameskbride.localsns.models.Configuration
+import com.jameskbride.localsns.models.Subscription
+import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.DatabaseVerticle
 import com.jameskbride.localsns.verticles.MainVerticle
+import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.CompositeFuture
 import io.vertx.core.Vertx
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.net.URI
 
 @ExtendWith(VertxExtension::class)
 class SubscribeRouteTest : BaseTest() {
@@ -78,23 +82,14 @@ class SubscribeRouteTest : BaseTest() {
         val camelSqsEndpoint = createCamelSqsEndpoint(queueName)
         val config = ConfigFactory.load()
         vertx.eventBus().consumer<String>("configChangeComplete") {
-            vertx.fileSystem()
-                .readFile(getDbOutputPath(config))
-                .onComplete { result ->
-                    val configFile = result.result()
-                    val jsonConfig = JsonObject(configFile)
-
-                    val configuration = jsonConfig.mapTo(Configuration::class.java)
-                    assertEquals(configuration.version, 1)
-                    assertTrue(configuration.topics.contains(topic))
-                    val foundSubscription = configuration.subscriptions
-                        .find { it.topicArn == topic.arn && it.protocol == "sqs" && it.endpoint == camelSqsEndpoint }
-                    if (foundSubscription == null) {
-                        testContext.failNow(IllegalStateException("Subscription not found"))
-                    }
-
-                    testContext.completeNow()
-                }
+            waitOnSubscription(vertx, testContext, config, topic) {
+                it.topicArn == topic.arn && it.protocol == "sqs" && camelEndpointMatches(
+                    it.endpoint,
+                    queueName,
+                    "000000000000",
+                    "http://localhost:9324"
+                )
+            }
         }
 
         val response = subscribe(topic.arn, camelSqsEndpoint, "sqs")
@@ -112,33 +107,79 @@ class SubscribeRouteTest : BaseTest() {
         val topic = createTopicModel("topic1")
 
         val queueName = "queue1"
-        val response = subscribe(topic.arn, createHttpSqsEndpoint(queueName), "sqs")
+        val response = subscribe(topic.arn, createHttpSqsEndpoint(queueName, "http://localhost:9324"), "sqs")
         val config = ConfigFactory.load()
         vertx.eventBus().consumer<String>("configChangeComplete") {
-            vertx.fileSystem()
-                .readFile(getDbOutputPath(config))
-                .onComplete { result ->
-                    val configFile = result.result()
-                    val jsonConfig = JsonObject(configFile)
-
-                    val configuration = jsonConfig.mapTo(Configuration::class.java)
-                    assertEquals(configuration.version, 1)
-                    assertTrue(configuration.topics.contains(topic))
-                    val expectedEndpoint =
-                        "aws2-sqs://$queueName?accessKey=xxx&secretKey=xxx&region=us-east-1&trustAllCertificates=true&overrideEndpoint=true&uriEndpointOverride=http://localhost:9324"
-                    val foundSubscription = configuration.subscriptions
-                        .find { it.topicArn == topic.arn && it.protocol == "sqs" && it.endpoint == expectedEndpoint }
-                    if (foundSubscription == null) {
-                        testContext.failNow(IllegalStateException("Subscription not found"))
-                    }
-
-                    testContext.completeNow()
-                }
+            waitOnSubscription(vertx, testContext, config, topic) {
+                it.topicArn == topic.arn && it.protocol == "sqs" && camelEndpointMatches(
+                    it.endpoint,
+                    queueName,
+                    "000000000000",
+                    "http://localhost:9324"
+                )
+            }
         }
 
         val subscriptionArn = getSubscriptionArnFromResponse(response)
         assertEquals(200, response.statusCode)
         assertTrue(subscriptionArn.isNotEmpty())
+    }
+
+    @Test
+    @Tag("skipForCI")
+    fun `it creates a camel-compliant sqs endpoint subscription when subscribing to an http sqs queue with no port`(vertx: Vertx, testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+
+        val queueName = "queue1"
+        val response = subscribe(topic.arn, createHttpSqsEndpoint(queueName, "https://sqs.us-east-1.amazonaws.com"), "sqs")
+        val config = ConfigFactory.load()
+        vertx.eventBus().consumer<String>("configChangeComplete") {
+            waitOnSubscription(vertx, testContext, config, topic) {
+                it.topicArn == topic.arn && it.protocol == "sqs" && camelEndpointMatches(
+                    it.endpoint,
+                    queueName,
+                    "000000000000",
+                    "https://sqs.us-east-1.amazonaws.com"
+                )
+            }
+        }
+
+        val subscriptionArn = getSubscriptionArnFromResponse(response)
+        assertEquals(200, response.statusCode)
+        assertTrue(subscriptionArn.isNotEmpty())
+    }
+
+    private fun waitOnSubscription(
+        vertx: Vertx,
+        testContext: VertxTestContext,
+        config: Config,
+        topic: Topic,
+        subscriptionPredicate: (Subscription) -> Boolean
+    ) {
+        vertx.fileSystem()
+            .readFile(getDbOutputPath(config))
+            .onComplete { result ->
+                val configFile = result.result()
+                val jsonConfig = JsonObject(configFile)
+
+                val configuration = jsonConfig.mapTo(Configuration::class.java)
+                assertEquals(configuration.version, 1)
+                assertTrue(configuration.topics.contains(topic))
+                val foundSubscription = configuration.subscriptions.find(subscriptionPredicate)
+                if (foundSubscription == null) {
+                    testContext.failNow(IllegalStateException("Subscription not found"))
+                }
+
+                testContext.completeNow()
+            }
+    }
+
+    private fun camelEndpointMatches(endpoint: String?, queueName: String, accountId: String, uriEndpointOverride: String): Boolean {
+        val uri = URI(endpoint)
+        return uri.scheme == "aws2-sqs"
+                && uri.host == queueName
+                && uri.query.contains("queueOwnerAWSAccountId=$accountId")
+                && uri.query.contains("uriEndpointOverride=$uriEndpointOverride")
     }
 
     @Test

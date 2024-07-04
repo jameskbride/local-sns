@@ -36,8 +36,13 @@ open class BaseTest {
         return "aws2-sqs://$name?accessKey=xxx&secretKey=xxx&region=us-east-1&trustAllCertificates=true&overrideEndpoint=true&uriEndpointOverride=http://localhost:9324/000000000000/$name&messageAttributeNames=first,second"
     }
 
-    fun createHttpSqsEndpoint(name: String): String {
-        return "http://localhost:9324/000000000000/$name"
+    fun createHttpSqsEndpoint(name: String, protocolAndHost: String, port: String? = null): String {
+        val portString = if (port != null) {
+            ":$port"
+        } else {
+            ""
+        }
+        return "$protocolAndHost$portString/000000000000/$name"
     }
 
     fun createCamelHttpEndpoint(uri: String, method: String = "POST"): String {
