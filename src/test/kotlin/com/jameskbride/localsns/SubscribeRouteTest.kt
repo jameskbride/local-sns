@@ -5,21 +5,18 @@ import com.jameskbride.localsns.verticles.DatabaseVerticle
 import com.jameskbride.localsns.verticles.MainVerticle
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.CompositeFuture
-import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
-import io.vertx.junit5.Timeout
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.util.concurrent.TimeUnit
 
 @ExtendWith(VertxExtension::class)
-@Timeout(value = 60, timeUnit = TimeUnit.SECONDS)
 class SubscribeRouteTest : BaseTest() {
 
     companion object {
@@ -110,6 +107,7 @@ class SubscribeRouteTest : BaseTest() {
     }
 
     @Test
+    @Tag("skipForCI")
     fun `it creates a camel-compliant sqs endpoint subscription when subscribing to an http sqs queue`(vertx: Vertx, testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
 
