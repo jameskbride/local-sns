@@ -7,6 +7,9 @@ services:
     volumes:
     - ./config/db.json:/etc/sns/db.json
     - ./config/logs:/tmp/logs
+    - ./config/output:/tmp/output
+    environment:
+      - DB_OUTPUT_PATH=/tmp/output/db.json
     depends_on:
     - sqs
   sqs:

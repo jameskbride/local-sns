@@ -168,3 +168,4 @@ nbdist/
 db.json
 !example/config/db.json
 example/config/logs
+example/config/ouput
