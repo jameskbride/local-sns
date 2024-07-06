@@ -13,9 +13,9 @@ services:
     depends_on:
     - sqs
   sqs:
-    image: s12v/elasticmq
+    image: softwaremill/elasticmq-native:1.6.5
     ports:
     - "9324:9324"
     volumes:
-    - ./config/elasticmq.conf:/etc/elasticmq/elasticmq.conf
+    - ./config/elasticmq.conf:/opt/elasticmq.conf
 
