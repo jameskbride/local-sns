@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0] - 2024-07-13
+### Added
+- Added a GET /config route [#22](https://github.com/jameskbride/local-sns/pull/22)
+
+### Changed
+- Create Camel-compliant SQS subscriptions. [#23](https://github.com/jameskbride/local-sns/pull/23)
+- Capturing the AWS Account ID during SQS subscribe. [#24](https://github.com/jameskbride/local-sns/pull/24)
+- Updating the example configuration. [#26](https://github.com/jameskbride/local-sns/pull/26)
+
 ## [1.0.0] - 2023-12-29
 ### Added
 - Log the version on startup. [#14](https://github.com/jameskbride/local-sns/pull/14)

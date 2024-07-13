@@ -101,6 +101,10 @@ docker-compose up
   | [Or Operator](https://docs.aws.amazon.com/sns/latest/dg/and-or-logic.html#or-operator)                                                                                                          | No                                                                                           |
   | [Key Matching](https://docs.aws.amazon.com/sns/latest/dg/attribute-key-matching.html)                                                                                                           | No                                                                                           |
 
+### Additional Endpoints
+* `GET /config` - Returns the current configuration of the local-sns instance.
+* `GET /health` - Returns a 200 status code if the service is running.
+
 ## Development
 This project uses Kotlin, [Vert.X](https://vertx.io), and [Apache Camel](https://camel.apache.org) for message routing.
 
