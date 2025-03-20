@@ -74,9 +74,22 @@ class PublishBatchRouteTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val batchEntries = mutableMapOf<String, String>()
         for (i in 0..1) {
-            batchEntries["PublishBatchRequestEntries.member.${i}.Id"] = "the same id"
+            batchEntries["PublishBatchRequestEntries.member.${i}.Id"] = "thesameid"
             batchEntries["PublishBatchRequestEntries.member.${i}.Message"] = "Hello, SNS!$i"
         }
+        val response = publishBatch(topicArn = topic.arn, batchEntries = batchEntries)
+
+        assertEquals(400, response.statusCode)
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it returns an error when batch entry ids are not formatted correctly`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val batchEntries = mutableMapOf<String, String>()
+        //no spaces allowed
+        batchEntries["PublishBatchRequestEntries.member.1.Id"] = "the same id"
+        batchEntries["PublishBatchRequestEntries.member.1.Message"] = "Hello, SNS!1"
         val response = publishBatch(topicArn = topic.arn, batchEntries = batchEntries)
 
         assertEquals(400, response.statusCode)

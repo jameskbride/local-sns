@@ -2,6 +2,8 @@ package com.jameskbride.localsns.models
 
 private const val ENTRY_PATTERN = "PublishBatchRequestEntries\\.member\\.(\\d+)\\.(.*?)"
 
+// ids can have alpha-numeric characters, hyphens, and underscores, up to 80 characters
+private const val ID_PATTERN = "[a-zA-Z0-9_-]{1,80}"
 data class PublishBatchRequestEntry(val id: String, val message: String) {
     companion object {
         fun parse(attributes: List<Map.Entry<String, String>>): Map<Int, PublishBatchRequestEntry> {
@@ -26,6 +28,10 @@ data class PublishBatchRequestEntry(val id: String, val message: String) {
             }.fold(mapOf<Int, PublishBatchRequestEntry>()) { acc, map -> acc + map }
 
             return publishBatchRequestEntries
+        }
+
+        fun isValidId(id: String): Boolean {
+            return id.matches(ID_PATTERN.toRegex())
         }
     }
 }

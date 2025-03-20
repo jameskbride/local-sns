@@ -52,6 +52,12 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
+    val invalidIds = batchEntries.values.filter { !PublishBatchRequestEntry.isValidId(it.id) }
+    if (invalidIds.isNotEmpty()) {
+        logAndReturnError(ctx, logger, "The batch request contains invalid entry ids: ${invalidIds.map { it.id }}. This identifier can have up to 80 characters. The following characters are accepted: alphanumeric characters, hyphens(-), and underscores (_)", INVALID_BATCH_ENTRY_ID, 400)
+        return@route
+    }
+
     ctx.request().response()
         .putHeader("context-type", "text/xml")
         .setStatusCode(200)

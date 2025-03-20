@@ -19,6 +19,7 @@ const val INTERNAL_ERROR = "InternalError"
 const val EMPTY_BATCH_REQUEST = "EmptyBatchRequest"
 const val TOO_MANY_ENTRIES_IN_BATCH_REQUEST = "TooManyEntriesInBatchRequest"
 const val BATCH_ENTRY_IDS_NOT_DISTINCT = "BatchEntryIdNotDistinct"
+const val INVALID_BATCH_ENTRY_ID = "InvalidBatchEntryId"
 
 fun getDbPath(config: Config): String? =
     System.getenv("DB_PATH") ?: config.getString("db.path")
