@@ -40,10 +40,27 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         .end(
             """
               <PublishBatchResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/">
+                <PublishBatchResult>
+                    <Failed />
+                    <Successful>
+                        <member>
+                            <MessageId>605c74b2-37fb-536f-b349-14e757d832dd</MessageId>
+                            <Id>1</Id>
+                        </member>
+                        <member>
+                            <MessageId>4446707a-a051-572a-ba8e-102fc072c698</MessageId>
+                            <Id>2</Id>
+                        </member>
+                        <member>
+                            <MessageId>ae2ee57f-5158-5edc-9732-852a317b5f6e</MessageId>
+                            <Id>3</Id>
+                        </member>
+                    </Successful>
+                </PublishBatchResult>
                 <ResponseMetadata>
-                  <RequestId>${UUID.randomUUID()}</RequestId>
+                    <RequestId>${UUID.randomUUID()}</RequestId>
                 </ResponseMetadata>
-              </PublishResponse>
+            </PublishBatchResponse>
             """.trimIndent()
         )
 }
