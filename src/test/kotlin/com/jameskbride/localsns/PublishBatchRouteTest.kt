@@ -69,6 +69,20 @@ class PublishBatchRouteTest: BaseTest() {
         testContext.completeNow()
     }
 
+    @Test
+    fun `it returns an error when the batch entry ids are not distinct`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val batchEntries = mutableMapOf<String, String>()
+        for (i in 0..1) {
+            batchEntries["PublishBatchRequestEntries.member.${i}.Id"] = "the same id"
+            batchEntries["PublishBatchRequestEntries.member.${i}.Message"] = "Hello, SNS!$i"
+        }
+        val response = publishBatch(topicArn = topic.arn, batchEntries = batchEntries)
+
+        assertEquals(400, response.statusCode)
+        testContext.completeNow()
+    }
+
     fun publishBatch(topicArn: String?, batchEntries: Map<String, String> = mapOf()): Response {
         val data = mutableMapOf(
             "Action" to "PublishBatch"

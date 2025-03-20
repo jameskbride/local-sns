@@ -4,7 +4,7 @@ private const val ENTRY_PATTERN = "PublishBatchRequestEntries\\.member\\.(\\d+)\
 
 data class PublishBatchRequestEntry(val id: String, val message: String) {
     companion object {
-        fun parse(attributes: List<Map.Entry<String, String>>): Map<String, PublishBatchRequestEntry> {
+        fun parse(attributes: List<Map.Entry<String, String>>): Map<Int, PublishBatchRequestEntry> {
             val pattern = ENTRY_PATTERN.toRegex()
             val entryNumbers = attributes.map { attribute ->
                 val match = pattern.matchEntire(attribute.key)
@@ -22,8 +22,8 @@ data class PublishBatchRequestEntry(val id: String, val message: String) {
                     it.key.matches(messagePattern.toRegex())
                 }!!.value
 
-                mapOf(id to PublishBatchRequestEntry(id, message))
-            }.fold(mapOf<String, PublishBatchRequestEntry>()) { acc, map -> acc + map }
+                mapOf(entryNumber to PublishBatchRequestEntry(id, message))
+            }.fold(mapOf<Int, PublishBatchRequestEntry>()) { acc, map -> acc + map }
 
             return publishBatchRequestEntries
         }

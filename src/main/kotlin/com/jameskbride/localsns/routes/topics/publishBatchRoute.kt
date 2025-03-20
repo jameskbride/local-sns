@@ -46,6 +46,12 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
+    val duplicateIds = batchEntries.values.groupBy { it.id }.filter { it.value.size > 1 }
+    if (duplicateIds.isNotEmpty()) {
+        logAndReturnError(ctx, logger, "The batch request contains duplicate entry ids: ${duplicateIds.keys}", BATCH_ENTRY_IDS_NOT_DISTINCT, 400)
+        return@route
+    }
+
     ctx.request().response()
         .putHeader("context-type", "text/xml")
         .setStatusCode(200)
