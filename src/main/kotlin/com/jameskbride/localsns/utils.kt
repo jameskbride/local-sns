@@ -17,6 +17,7 @@ const val NOT_FOUND = "NotFound"
 const val INVALID_PARAMETER = "InvalidParameter"
 const val INTERNAL_ERROR = "InternalError"
 const val EMPTY_BATCH_REQUEST = "EmptyBatchRequest"
+const val TOO_MANY_ENTRIES_IN_BATCH_REQUEST = "TooManyEntriesInBatchRequest"
 
 fun getDbPath(config: Config): String? =
     System.getenv("DB_PATH") ?: config.getString("db.path")

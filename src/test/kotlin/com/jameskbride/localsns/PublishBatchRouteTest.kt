@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.util.*
 
 @ExtendWith(VertxExtension::class)
 class PublishBatchRouteTest: BaseTest() {
@@ -54,11 +55,31 @@ class PublishBatchRouteTest: BaseTest() {
         testContext.completeNow()
     }
 
-    fun publishBatch(topicArn: String?): Response {
+    @Test
+    fun `it returns an error when the batch is too large`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val batchEntries = mutableMapOf<String, String>()
+        for (i in 0..10) {
+            batchEntries["PublishBatchRequestEntries.member.${i}.Id"] = "${UUID.randomUUID()}"
+            batchEntries["PublishBatchRequestEntries.member.${i}.Message"] = "Hello, SNS!$i"
+        }
+        val response = publishBatch(topicArn = topic.arn, batchEntries = batchEntries)
+
+        assertEquals(400, response.statusCode)
+        testContext.completeNow()
+    }
+
+    fun publishBatch(topicArn: String?, batchEntries: Map<String, String> = mapOf()): Response {
         val data = mutableMapOf(
             "Action" to "PublishBatch"
         )
         if (topicArn != null) { data["TopicArn"] = topicArn }
+
+        if (batchEntries.isNotEmpty()) {
+            batchEntries.forEach({
+                data[it.key] = it.value
+            })
+        }
 
         return postFormData(data)
     }

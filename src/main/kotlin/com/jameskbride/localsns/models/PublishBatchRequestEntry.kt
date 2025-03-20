@@ -1,6 +1,6 @@
 package com.jameskbride.localsns.models
 
-private const val ENTRY_PATTERN = ".*PublishBatchRequestEntry\\.entry\\.(\\d+)\\.(.*?)"
+private const val ENTRY_PATTERN = "PublishBatchRequestEntries\\.member\\.(\\d+)\\.(.*?)"
 
 data class PublishBatchRequestEntry(val id: String, val message: String) {
     companion object {
@@ -13,12 +13,12 @@ data class PublishBatchRequestEntry(val id: String, val message: String) {
 
             val publishBatchRequestEntries = entryNumbers.map { entryNumber ->
                 val id = attributes.find {
-                    val idPattern = ".*PublishBatchRequestEntry\\.entry\\.$entryNumber.Id"
+                    val idPattern = "PublishBatchRequestEntries\\.member\\.$entryNumber.Id"
                     it.key.matches(idPattern.toRegex())
                 }!!.value
 
                 val message = attributes.find {
-                    val messagePattern = ".*PublishBatchRequestEntry\\.entry\\.$entryNumber.Message"
+                    val messagePattern = "PublishBatchRequestEntries\\.member\\.$entryNumber.Message"
                     it.key.matches(messagePattern.toRegex())
                 }!!.value
 

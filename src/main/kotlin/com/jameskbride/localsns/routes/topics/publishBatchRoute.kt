@@ -37,7 +37,12 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
 
     val batchEntries = PublishBatchRequestEntry.parse(batchEntriesAttributes)
     if (batchEntries.isEmpty()) {
-        logAndReturnError(ctx, logger, "Empty PublishBatchRequestEntries", EMPTY_BATCH_REQUEST, 400)
+        logAndReturnError(ctx, logger, "The batch request doesn't contain any entries", EMPTY_BATCH_REQUEST, 400)
+        return@route
+    }
+
+    if (batchEntries.size > 10) {
+        logAndReturnError(ctx, logger, "The batch request contains more entries than permissible (more than 10)", TOO_MANY_ENTRIES_IN_BATCH_REQUEST, 400)
         return@route
     }
 
