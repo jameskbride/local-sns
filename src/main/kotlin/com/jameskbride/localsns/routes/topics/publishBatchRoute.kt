@@ -1,9 +1,7 @@
 package com.jameskbride.localsns.routes.topics
 
-import com.jameskbride.localsns.NOT_FOUND
-import com.jameskbride.localsns.getFormAttribute
-import com.jameskbride.localsns.getTopicsMap
-import com.jameskbride.localsns.logAndReturnError
+import com.jameskbride.localsns.*
+import com.jameskbride.localsns.models.PublishBatchRequestEntry
 import com.jameskbride.localsns.models.Topic
 import io.vertx.ext.web.RoutingContext
 import org.apache.logging.log4j.LogManager
@@ -14,6 +12,9 @@ import java.util.regex.Pattern
 val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val logger: Logger = LogManager.getLogger("publishBatchRoute")
     val topicArn = getFormAttribute(ctx, "TopicArn")
+    val formAttributes = ctx.request().formAttributes()
+    val batchEntriesAttributes = formAttributes
+        .filter { it.key.startsWith("PublishBatchRequestEntries.member") }
 
     if (topicArn == null) {
         val errorMessage =
@@ -31,6 +32,12 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val topicsMap = getTopicsMap(vertx)!!
     if (!topicsMap.contains(topicArn)) {
         logAndReturnError(ctx, logger, "Invalid TopicARN or TargetArn: $topicArn", NOT_FOUND, 404)
+        return@route
+    }
+
+    val batchEntries = PublishBatchRequestEntry.parse(batchEntriesAttributes)
+    if (batchEntries.isEmpty()) {
+        logAndReturnError(ctx, logger, "Empty PublishBatchRequestEntries", EMPTY_BATCH_REQUEST, 400)
         return@route
     }
 

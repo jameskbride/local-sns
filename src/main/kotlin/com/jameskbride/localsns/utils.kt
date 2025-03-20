@@ -16,6 +16,7 @@ import java.util.*
 const val NOT_FOUND = "NotFound"
 const val INVALID_PARAMETER = "InvalidParameter"
 const val INTERNAL_ERROR = "InternalError"
+const val EMPTY_BATCH_REQUEST = "EmptyBatchRequest"
 
 fun getDbPath(config: Config): String? =
     System.getenv("DB_PATH") ?: config.getString("db.path")

@@ -45,6 +45,15 @@ class PublishBatchRouteTest: BaseTest() {
         testContext.completeNow()
     }
 
+    @Test
+    fun `it returns an error when the batch is empty`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val response = publishBatch(topicArn = topic.arn)
+
+        assertEquals(400, response.statusCode)
+        testContext.completeNow()
+    }
+
     fun publishBatch(topicArn: String?): Response {
         val data = mutableMapOf(
             "Action" to "PublishBatch"
