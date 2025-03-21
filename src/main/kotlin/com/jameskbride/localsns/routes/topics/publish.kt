@@ -160,7 +160,7 @@ private fun attributeMatchesPolicy(
     return attributeMatchPolicy.any {
         when (val permittedValue = attributeMatchPolicy.firstOrNull()) {
             is String -> {
-                stringMatches(attributeMatchPolicy, value)
+                attributeMatchPolicy.map { it.toString() }.contains(value)
             }
 
             is LinkedHashMap<*, *> -> {
@@ -170,7 +170,7 @@ private fun attributeMatchesPolicy(
             }
 
             is Boolean -> {
-                booleanMatches(permittedValue, value)
+                permittedValue.toString() == value.toString()
             }
 
             else -> false
@@ -185,29 +185,16 @@ private fun numericMatches(permittedValue: LinkedHashMap<*, *>, attribute: Any?)
             numberMatches(matchParams, attribute)
         }
 
-        4 -> {
-            false
-        }
-
         else -> false
     }
 }
-
-private fun booleanMatches(permittedValue: Any?, attribute: Any?) = permittedValue.toString() == attribute.toString()
-
-private fun stringMatches(permittedValues: List<*>, attribute: Any?) =
-    permittedValues.map { it.toString() }.contains(attribute)
 
 private fun numberMatches(matchParams: List<*>, value: Any?): Boolean {
     val operator = matchParams[0]
     return when (operator) {
-        "=" -> numEquals(value as Double, matchParams[1] as Double)
+        "=" -> value as Double == matchParams[1] as Double
         else -> false
     }
-}
-
-private fun numEquals(messageAttribute: Double, filterPolicyValue: Double):Boolean {
-    return messageAttribute == filterPolicyValue
 }
 
 private fun publishToSqs(
