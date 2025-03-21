@@ -59,14 +59,25 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val producerTemplate = camelContext.createProducerTemplate()
     camelContext.start()
 
-    when (messageStructure) {
-        "json" -> {
-            if (!publishJsonStructure(message, ctx, logger, subscriptions, producerTemplate, messageAttributes)) return@route
+    if (messageStructure != null) {
+        val success = when (messageStructure) {
+            "json" -> {
+                publishJsonStructure(message, ctx, logger, subscriptions, producerTemplate, messageAttributes)
+            }
+            else -> {
+                publishBasicMessage(subscriptions, logger, message, producerTemplate, messageAttributes)
+                true
+            }
         }
-        else -> {
-            publishBasicMessage(subscriptions, logger, message, producerTemplate, messageAttributes)
+
+        if (!success) {
+            logAndReturnError(ctx, logger, "Message structure is not valid")
+            return@route
         }
+    } else {
+        publishBasicMessage(subscriptions, logger, message, producerTemplate, messageAttributes)
     }
+
 
     val messageId = UUID.randomUUID()
     ctx.request().response()
