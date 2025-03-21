@@ -15,16 +15,16 @@ import java.util.*
 
 fun publishJsonStructure(
     message: String?,
-    ctx: RoutingContext,
-    logger: Logger,
+    messageAttributes: Map<String, MessageAttribute>,
     subscriptions: List<Subscription>,
     producerTemplate: ProducerTemplate,
-    messageAttributes: Map<String, MessageAttribute>
+    routingContext: RoutingContext,
+    logger: Logger
 ): Boolean {
     try {
         val messages = JsonObject(message)
         if (messages.get<String?>("default") == null) {
-            logAndReturnError(ctx, logger, "Attribute 'default' is required when MessageStructure is json.")
+            logAndReturnError(routingContext, logger, "Attribute 'default' is required when MessageStructure is json.")
             return false
         }
 
@@ -43,18 +43,18 @@ fun publishJsonStructure(
         }
     } catch (ex: Exception) {
         ex.printStackTrace()
-        logAndReturnError(ctx, logger, "Message must be valid JSON")
+        logAndReturnError(routingContext, logger, "Message must be valid JSON")
         return false
     }
     return true
 }
 
 fun publishBasicMessage(
-    subscriptions: List<Subscription>,
-    logger: Logger,
     message: String,
+    messageAttributes: Map<String, MessageAttribute>,
+    subscriptions: List<Subscription>,
     producerTemplate: ProducerTemplate,
-    messageAttributes: Map<String, MessageAttribute>
+    logger: Logger
 ) {
     subscriptions.forEach { subscription ->
         try {
