@@ -4,7 +4,7 @@ private const val ENTRY_PATTERN = "PublishBatchRequestEntries\\.member\\.(\\d+)\
 
 // ids can have alpha-numeric characters, hyphens, and underscores, up to 80 characters
 private const val ID_PATTERN = "[a-zA-Z0-9_-]{1,80}"
-data class PublishBatchRequestEntry(val id: String, val message: String, val messageStructure: String? = null) {
+data class PublishBatchRequestEntry(val id: String, val message: String, val messageStructure: String? = null, val messageAttributes: Map<String, MessageAttribute> = mapOf()) {
     companion object {
         fun parse(attributes: List<Map.Entry<String, String>>): Map<Int, PublishBatchRequestEntry> {
             val pattern = ENTRY_PATTERN.toRegex()
@@ -29,7 +29,12 @@ data class PublishBatchRequestEntry(val id: String, val message: String, val mes
                     it.key.matches(messageStructurePattern.toRegex())
                 }?.value
 
-                mapOf(entryNumber to PublishBatchRequestEntry(id, message, messageStructure))
+                val messageAttributes = MessageAttribute.parse(attributes.filter {
+                    val messageAttributesPattern = "PublishBatchRequestEntries\\.member\\.$entryNumber.MessageAttributes\\.entry\\.(\\d+)\\.(.*?)"
+                    it.key.matches(messageAttributesPattern.toRegex())
+                })
+
+                mapOf(entryNumber to PublishBatchRequestEntry(id, message, messageStructure, messageAttributes))
             }.fold(mapOf<Int, PublishBatchRequestEntry>()) { acc, map -> acc + map }
 
             return publishBatchRequestEntries
