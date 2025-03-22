@@ -30,11 +30,13 @@ import software.amazon.awssdk.services.sns.model.PublishRequest
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest
+import software.amazon.awssdk.services.sqs.model.DeleteQueueRequest
 import software.amazon.awssdk.services.sqs.model.Message
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse
 import java.io.Serializable
 import java.net.URI
+import java.util.*
 
 private const val ELASTIC_MQ_SERVER_URL = "http://localhost:9324/000000000000"
 
@@ -45,6 +47,14 @@ class PublishRouteIntegrationTest: BaseTest() {
     fun setup(vertx: Vertx, testContext: VertxTestContext) {
         vertx.deployVerticle(MainVerticle(), testContext.succeeding { _ -> testContext.completeNow() })
         router.clear()
+        deleteAllQueues()
+    }
+
+    private fun deleteAllQueues() {
+        val listQueuesResponse = sqsSyncClient.listQueues()
+        listQueuesResponse.queueUrls().forEach { queueUrl ->
+            sqsSyncClient.deleteQueue(DeleteQueueRequest.builder().queueUrl(queueUrl).build())
+        }
     }
 
     companion object {
@@ -100,7 +110,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish messages to sqs`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "standard-publish"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
@@ -126,7 +136,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageAttributes - it does not publish when message attributes do not match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-donotmatch-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>): Serializable
         val gson = Gson()
@@ -157,7 +167,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageAttributes - it does publish when message attributes match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-doespublish-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>): Serializable
         val gson = Gson()
@@ -193,7 +203,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageAttributes - it does publish when multiple message attributes match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-multiple-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>, val amount:List<JsonObject>, val sold:List<Boolean>): Serializable
         val numericMatch = buildNumericPolicy(listOf("=", 10.5))
@@ -231,7 +241,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageAttributes - it does publish with exact numeric match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-multiple-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val amount:List<JsonObject>): Serializable
         val numericMatch = buildNumericPolicy(listOf("=", 10.5))
@@ -269,7 +279,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageAttributes - it does not publish when one or more attributes do not match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-messagebody-nomatch-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
         val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
@@ -309,7 +319,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageBody - it does not publish when message body attributes do not match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-messagebody-nomatch-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>): Serializable
         val gson = Gson()
@@ -342,7 +352,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageBody - it does publish when message body attributes match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-messagebody-doesmatch-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>): Serializable
         val gson = Gson()
@@ -377,7 +387,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageBody - it does publish when multiple message body attributes match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-messagebody-multiple-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>, val amount:List<JsonObject>, val sold:List<Boolean>): Serializable
         val numericMatch = buildNumericPolicy(listOf("=", 5.0))
@@ -423,7 +433,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageBody - it does publish with exact numeric match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-messagebody-numeric-exact-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val amount:List<JsonObject>): Serializable
         val numericMatch = buildNumericPolicy(listOf("=", 5.0))
@@ -459,7 +469,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `FilterPolicy MessageBody - it does not publish when one or more message body attributes do not match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "filter-policy-messagebody-nomatch-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
         val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
@@ -496,7 +506,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish raw messages to sqs`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "raw-queue"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         subscribe(topic.arn, endpoint, "sqs", mapOf("RawMessageDelivery" to "true"))
         val message = "Hello, SNS!"
@@ -520,7 +530,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish using the TargetArn`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "target-arn-queue"
+        val queueName = UUID.randomUUID().toString()
         createQueue(queueName)
         val endpoint = createCamelSqsEndpoint(queueName)
         subscribe(topic.arn, endpoint, "sqs")
@@ -546,7 +556,7 @@ class PublishRouteIntegrationTest: BaseTest() {
     @Test
     fun `it can publish with message attributes`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
-        val queueName = "with-attributes"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         subscribe(topic.arn, endpoint, "sqs")
         val message = "Hello, SNS!"
@@ -559,7 +569,7 @@ class PublishRouteIntegrationTest: BaseTest() {
 
         snsClient.publish(request)
 
-        val queueUrl = createQueueUrl("with-attributes")
+        val queueUrl = createQueueUrl(queueName)
         startReceivingMessages(queueUrl, messageAttributes.map { it.name }.toSet()) { response ->
             val messages = response.messages()
             if (messages.any {
@@ -776,7 +786,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         val jsonMessage = Json.encode(JsonMessage("hello sqs"))
         val message = Message("default message", jsonMessage)
 
-        val queueName = "raw-message-structure-sqs"
+        val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
         val topic = createTopicModel("topic1")
         subscribe(
