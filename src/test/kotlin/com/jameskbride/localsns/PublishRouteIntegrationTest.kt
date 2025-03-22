@@ -70,7 +70,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         @JvmStatic
         @BeforeAll
         fun setupBeforeAll(vertx: Vertx) {
-            config = ConfigFactory.load("elasticmq.conf")
+            config = ConfigFactory.load("elasticmq-publish-integration-tests.conf")
             credentials = AwsBasicCredentials.create("xxx", "xxx")
             snsClient = SnsClient.builder()
                 .region(Region.US_EAST_1)
