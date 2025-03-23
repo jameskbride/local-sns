@@ -32,8 +32,13 @@ open class BaseTest {
     protected fun createValidArn(resourceName: String) =
         "arn:aws:sns:us-east-1:123456789012:${resourceName}"
 
-    fun createCamelSqsEndpoint(name: String): String {
-        return "aws2-sqs://$name?accessKey=xxx&secretKey=xxx&region=us-east-1&trustAllCertificates=true&overrideEndpoint=true&uriEndpointOverride=http://localhost:9324/000000000000/$name&messageAttributeNames=first,second"
+    fun createCamelSqsEndpoint(name: String, port: Int? = null): String {
+        val portString = if (port != null) {
+            "$port"
+        } else {
+            "9324"
+        }
+        return "aws2-sqs://$name?accessKey=xxx&secretKey=xxx&region=us-east-1&trustAllCertificates=true&overrideEndpoint=true&uriEndpointOverride=http://localhost:$portString/000000000000/$name"
     }
 
     fun createHttpSqsEndpoint(name: String, protocolAndHost: String, port: String? = null): String {
