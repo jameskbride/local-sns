@@ -1,6 +1,9 @@
 package com.jameskbride.localsns.routes.topics
 
-import com.jameskbride.localsns.*
+import com.jameskbride.localsns.NOT_FOUND
+import com.jameskbride.localsns.getFormAttribute
+import com.jameskbride.localsns.getTopicsMap
+import com.jameskbride.localsns.logAndReturnError
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
 import io.vertx.ext.web.RoutingContext
@@ -53,8 +56,6 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     }
 
     val messageAttributes:Map<String, MessageAttribute> = MessageAttribute.parse(attributes)
-    val subscriptionsMap = getSubscriptionsMap(vertx)
-    val subscriptions = subscriptionsMap!!.getOrDefault(topicArn, listOf())
     val camelContext = DefaultCamelContext()
     val producerTemplate = camelContext.createProducerTemplate()
     camelContext.start()
@@ -62,10 +63,10 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     if (messageStructure != null) {
         val success = when (messageStructure) {
             "json" -> {
-                publishJsonStructure(message, messageAttributes, subscriptions, producerTemplate, ctx, logger)
+                publishJsonStructure(message, messageAttributes, topicArn, producerTemplate, ctx, logger)
             }
             else -> {
-                publishBasicMessage(message, messageAttributes, subscriptions, producerTemplate, logger)
+                publishBasicMessageToTopic(message, messageAttributes, topicArn, producerTemplate, ctx, logger)
                 true
             }
         }
@@ -75,7 +76,7 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
             return@route
         }
     } else {
-        publishBasicMessage(message, messageAttributes, subscriptions, producerTemplate, logger)
+        publishBasicMessageToTopic(message, messageAttributes, topicArn, producerTemplate, ctx, logger)
     }
 
 
@@ -95,8 +96,4 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
               </PublishResponse>
             """.trimIndent()
         )
-}
-
-fun getTopicArn(topicArn: String?, targetArn: String?): String? {
-    return topicArn ?: targetArn
 }

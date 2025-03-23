@@ -114,9 +114,39 @@ class PublishBatchRouteIntegrationTest: BaseTest() {
         val queueUrl = createQueueUrl(queueName)
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
+            Assertions.assertTrue(messages.isNotEmpty(), "No messages received from SQS")
             messages.forEach {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
             }
+            testContext.completeNow()
+        }
+
+        val publishBatchRequestEntries = mutableListOf<PublishBatchRequestEntry>()
+        publishBatchRequestEntries.add(
+            PublishBatchRequestEntry(
+                UUID.randomUUID().toString(),
+                "Hello, SNS!",
+            )
+        )
+
+        val request = publishBatchRequest(topic, publishBatchRequestEntries)
+        snsClient.publishBatch(request)
+    }
+
+    @Test
+    fun `it can publish multiple messages in batch to sqs`(testContext: VertxTestContext) {
+        val topic = createTopicModel(UUID.randomUUID().toString())
+        val queueName = UUID.randomUUID().toString()
+        val endpoint = createQueue(queueName)
+        subscribe(topic.arn, endpoint, "sqs")
+        data class JsonMessage(val key:String):Serializable
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl) { response ->
+            val messages = response.messages().toTypedArray()
+            val jsonString = messages[0].body()
+            val jsonMessage = Gson().fromJson(jsonString, Array::class.java)
+            Assertions.assertEquals(2, jsonMessage.size)
+            sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(messages[0].receiptHandle()).build())
             testContext.completeNow()
         }
 
@@ -125,7 +155,7 @@ class PublishBatchRouteIntegrationTest: BaseTest() {
             publishBatchRequestEntries.add(
                 PublishBatchRequestEntry(
                     UUID.randomUUID().toString(),
-                    "Hello, SNS!$i",
+                    Json.encode(JsonMessage("Hello, SNS!$i")),
                 )
             )
         }

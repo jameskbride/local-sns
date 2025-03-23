@@ -4,6 +4,7 @@ import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.PublishBatchRequestEntry
 import com.jameskbride.localsns.models.Topic
 import io.vertx.ext.web.RoutingContext
+import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.util.*
@@ -57,6 +58,12 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         logAndReturnError(ctx, logger, "The batch request contains invalid entry ids: ${invalidIds.map { it.id }}. This identifier can have up to 80 characters. The following characters are accepted: alphanumeric characters, hyphens(-), and underscores (_)", INVALID_BATCH_ENTRY_ID, 400)
         return@route
     }
+
+    val camelContext = DefaultCamelContext()
+    val producerTemplate = camelContext.createProducerTemplate()
+    camelContext.start()
+    val messages = batchEntries.values.map { it.message }
+    publishBasicMessagesToTopic(messages, mapOf(), topicArn, producerTemplate, ctx, logger)
 
     ctx.request().response()
         .putHeader("context-type", "text/xml")
