@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.0] - 2025-03-25
+## Added
+- Added support for `PublishBatch` [#29](https://github.com/jameskbride/local-sns/pull/29)
+
 ## [1.1.0] - 2024-07-13
 ### Added
 - Added a GET /config route [#22](https://github.com/jameskbride/local-sns/pull/22)
