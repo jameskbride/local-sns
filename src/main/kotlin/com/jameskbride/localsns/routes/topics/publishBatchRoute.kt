@@ -62,8 +62,36 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val camelContext = DefaultCamelContext()
     val producerTemplate = camelContext.createProducerTemplate()
     camelContext.start()
-    val messages = batchEntries.values.map { it.message }
-    publishBasicMessagesToTopic(messages, mapOf(), topicArn, producerTemplate, ctx, logger)
+    batchEntries.values.map { message ->
+        if (message.messageStructure != null) {
+            val success = when (message.messageStructure) {
+                "json" -> {
+                    publishJsonStructure(message.message, message.messageAttributes, topicArn, producerTemplate, ctx)
+                }
+                else -> {
+                    publishBasicMessageToTopic(message.message, message.messageAttributes, topicArn, producerTemplate, ctx)
+                    true
+                }
+            }
+
+            if (!success) {
+                logAndReturnError(ctx, logger, "Message structure is not valid")
+                return@route
+            }
+        } else {
+            publishBasicMessageToTopic(message.message, message.messageAttributes, topicArn, producerTemplate, ctx)
+        }
+    }
+
+    //build Successful responses
+    val successfulResponse = batchEntries.values.map { message ->
+        """
+            <member>
+                <MessageId>${UUID.randomUUID()}</MessageId>
+                <Id>${message.id}</Id>
+            </member>
+        """.trimIndent()
+    }.joinToString("\n")
 
     ctx.request().response()
         .putHeader("context-type", "text/xml")
@@ -74,18 +102,7 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
                 <PublishBatchResult>
                     <Failed />
                     <Successful>
-                        <member>
-                            <MessageId>605c74b2-37fb-536f-b349-14e757d832dd</MessageId>
-                            <Id>1</Id>
-                        </member>
-                        <member>
-                            <MessageId>4446707a-a051-572a-ba8e-102fc072c698</MessageId>
-                            <Id>2</Id>
-                        </member>
-                        <member>
-                            <MessageId>ae2ee57f-5158-5edc-9732-852a317b5f6e</MessageId>
-                            <Id>3</Id>
-                        </member>
+                        $successfulResponse
                     </Successful>
                 </PublishBatchResult>
                 <ResponseMetadata>

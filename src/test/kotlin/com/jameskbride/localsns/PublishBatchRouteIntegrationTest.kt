@@ -1,7 +1,5 @@
 package com.jameskbride.localsns
 
-import com.google.gson.Gson
-import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.PublishBatchRequestEntry
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.MainVerticle
@@ -9,9 +7,6 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
-import io.vertx.core.json.Json
-import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
@@ -25,13 +20,10 @@ import org.junit.jupiter.api.extension.ExtendWith
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sns.SnsClient
-import software.amazon.awssdk.services.sns.model.MessageAttributeValue
 import software.amazon.awssdk.services.sns.model.PublishBatchRequest
-import software.amazon.awssdk.services.sns.model.PublishRequest
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.*
-import java.io.Serializable
 import java.net.URI
 import java.util.*
 
@@ -128,37 +120,6 @@ class PublishBatchRouteIntegrationTest: BaseTest() {
                 "Hello, SNS!",
             )
         )
-
-        val request = publishBatchRequest(topic, publishBatchRequestEntries)
-        snsClient.publishBatch(request)
-    }
-
-    @Test
-    fun `it can publish multiple messages in batch to sqs`(testContext: VertxTestContext) {
-        val topic = createTopicModel(UUID.randomUUID().toString())
-        val queueName = UUID.randomUUID().toString()
-        val endpoint = createQueue(queueName)
-        subscribe(topic.arn, endpoint, "sqs")
-        data class JsonMessage(val key:String):Serializable
-        val queueUrl = createQueueUrl(queueName)
-        startReceivingMessages(queueUrl) { response ->
-            val messages = response.messages().toTypedArray()
-            val jsonString = messages[0].body()
-            val jsonMessage = Gson().fromJson(jsonString, Array::class.java)
-            Assertions.assertEquals(2, jsonMessage.size)
-            sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(messages[0].receiptHandle()).build())
-            testContext.completeNow()
-        }
-
-        val publishBatchRequestEntries = mutableListOf<PublishBatchRequestEntry>()
-        for (i in 0..1) {
-            publishBatchRequestEntries.add(
-                PublishBatchRequestEntry(
-                    UUID.randomUUID().toString(),
-                    Json.encode(JsonMessage("Hello, SNS!$i")),
-                )
-            )
-        }
 
         val request = publishBatchRequest(topic, publishBatchRequestEntries)
         snsClient.publishBatch(request)

@@ -10,10 +10,14 @@ import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.get
 import org.apache.camel.ProducerTemplate
+import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
+import java.util.concurrent.CompletableFuture
+
+private val logger: Logger = LogManager.getLogger("publish")
 
 fun getTopicSubscriptions(
     vertx: Vertx,
@@ -33,9 +37,9 @@ fun publishJsonStructure(
     messageAttributes: Map<String, MessageAttribute>,
     topicArn: String,
     producerTemplate: ProducerTemplate,
-    routingContext: RoutingContext,
-    logger: Logger
+    routingContext: RoutingContext
 ): Boolean {
+    logger.info("Publishing message to topic with json structure {}", topicArn)
     val subscriptions = getTopicSubscriptions(routingContext.vertx(), topicArn)
     try {
         val messages = JsonObject(message)
@@ -44,24 +48,22 @@ fun publishJsonStructure(
             return false
         }
 
-        subscriptions.forEach { subscription ->
-            try {
-                val messageToPublish: Any = if (messages.containsKey(subscription.protocol)) {
-                    messages[subscription.protocol]
-                } else {
-                    messages["default"]
-                }
-                logger.debug("Messages to publish: $messageToPublish")
-                publishToSubscription(subscription, messageToPublish as String, messageAttributes, producerTemplate, logger)
-            } catch (e: Exception) {
-                logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
+        subscriptions.map { subscription ->
+            val messageToPublish: Any = if (messages.containsKey(subscription.protocol)) {
+                messages[subscription.protocol]
+            } else {
+                messages["default"]
             }
+            logger.debug("Messages to publish: $messageToPublish")
+            publishToSubscription(subscription, messageToPublish as String, messageAttributes, producerTemplate)
+                ?.exceptionally { logger.error("Error publishing to subscription: ${subscription.arn}", it) }
         }
     } catch (ex: Exception) {
         ex.printStackTrace()
         logAndReturnError(routingContext, logger, "Message must be valid JSON")
         return false
     }
+
     return true
 }
 
@@ -70,34 +72,13 @@ fun publishBasicMessageToTopic(
     messageAttributes: Map<String, MessageAttribute>,
     topicArn: String,
     producerTemplate: ProducerTemplate,
-    routingContext: RoutingContext,
-    logger: Logger
+    routingContext: RoutingContext
 ) {
     val subscriptions = getTopicSubscriptions(routingContext.vertx(), topicArn)
+    logger.info("Publishing to topic: $topicArn")
     subscriptions.forEach { subscription ->
-        try {
-            publishToSubscription(subscription, message, messageAttributes, producerTemplate, logger)
-        } catch (e: Exception) {
-            logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
-        }
-    }
-}
-
-fun publishBasicMessagesToTopic(
-    messages: List<String>,
-    messageAttributes: Map<String, MessageAttribute>,
-    topicArn: String,
-    producerTemplate: ProducerTemplate,
-    routingContext: RoutingContext,
-    logger: Logger
-) {
-    val subscriptions = getTopicSubscriptions(routingContext.vertx(), topicArn)
-    subscriptions.forEach { subscription ->
-        try {
-            publishToSubscription(subscription, messages, messageAttributes, producerTemplate, logger)
-        } catch (e: Exception) {
-            logger.error("An error occurred when publishing to: ${subscription.endpoint}", e)
-        }
+        publishToSubscription(subscription, message, messageAttributes, producerTemplate)
+            ?.exceptionally { logger.error("An error occurred when publishing to: ${subscription.endpoint}", it) }
     }
 }
 
@@ -105,14 +86,13 @@ private fun publishToSubscription(
     subscription: Subscription,
     message: String,
     messageAttributes: Map<String, MessageAttribute>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
-    val matchesFilterPolicy = getMatchesFilterPolicy(subscription, message, messageAttributes)
+    producer: ProducerTemplate
+): CompletableFuture<Any>? {
+    val matchesFilterPolicy = matchesFilterPolicy(subscription, message, messageAttributes)
 
     if (!matchesFilterPolicy) {
-        logger.debug("Message does not match filter policy for subscription: ${subscription.arn}")
-        return
+        logger.info("Message does not match filter policy for subscription: ${subscription.arn}")
+        return CompletableFuture.completedFuture(null)
     }
 
     val headers = messageAttributes.map { it.key to it.value.value }.toMap() +
@@ -122,74 +102,40 @@ private fun publishToSubscription(
                 "x-amz-sns-subscription-arn" to subscription.arn,
                 "x-amz-sns-topic-arn" to subscription.topicArn
             )
-    when (subscription.protocol) {
+    return when (subscription.protocol) {
         "lambda" -> {
-            publishToLambda(subscription, message, headers, producer, logger)
+            logger.info("Publishing to Lambda subscription: ${subscription.arn}")
+            publishToLambda(subscription, message, headers, producer)
         }
+
         "http" -> {
-            publishToHttp(subscription, message, headers, producer, logger)
+            logger.info("Publishing to HTTP subscription: ${subscription.arn}")
+            publishToHttp(subscription, message, headers, producer)
         }
+
         "https" -> {
-            publishToHttp(subscription, message, headers, producer, logger)
+            logger.info("Publishing to HTTPS subscription: ${subscription.arn}")
+            publishToHttp(subscription, message, headers, producer)
         }
+
         "slack" -> {
-            publishToSlack(subscription, message, headers, producer, logger)
+            logger.info("Publishing to Slack subscription: ${subscription.arn}")
+            publishToSlack(subscription, message, headers, producer)
         }
+
         "sqs" -> {
-            publishToSqs(subscription, message, headers, producer, logger)
+            logger.info("Publishing to SQS subscription: ${subscription.arn}")
+            publishToSqs(subscription, message, headers, producer)
         }
+
         else -> {
-            publishAllowingRawMessage(subscription, message, headers, producer, logger)
+            logger.info("Publishing to subscription: ${subscription.arn}")
+            publishAllowingRawMessage(subscription, message, headers, producer)
         }
     }
 }
 
-private fun publishToSubscription(
-    subscription: Subscription,
-    messages: List<String>,
-    messageAttributes: Map<String, MessageAttribute>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
-    val messagesMatchingFilterPolicy = messages.filter { msg ->
-        getMatchesFilterPolicy(subscription, msg, messageAttributes)
-    }
-
-    val headers = messageAttributes.map { it.key to it.value.value }.toMap() +
-            mapOf(
-                "x-amz-sns-message-type" to "Notification",
-                "x-amz-sns-subscription-arn" to subscription.arn,
-                "x-amz-sns-topic-arn" to subscription.topicArn
-            )
-
-    //Batch publishing is only supported for SQS subscriptions
-    if (subscription.protocol == "sqs") {
-        publishToSqs(subscription, messages, headers, producer, logger)
-        return
-    }
-
-    messagesMatchingFilterPolicy.forEach { message ->
-        when (subscription.protocol) {
-            "lambda" -> {
-                publishToLambda(subscription, message, headers, producer, logger)
-            }
-            "http" -> {
-                publishToHttp(subscription, message, headers, producer, logger)
-            }
-            "https" -> {
-                publishToHttp(subscription, message, headers, producer, logger)
-            }
-            "slack" -> {
-                publishToSlack(subscription, message, headers, producer, logger)
-            }
-            else -> {
-                publishAllowingRawMessage(subscription, message, headers, producer, logger)
-            }
-        }
-    }
-}
-
-private fun getMatchesFilterPolicy(
+private fun matchesFilterPolicy(
     subscription: Subscription,
     message: String,
     messageAttributes: Map<String, MessageAttribute>
@@ -292,29 +238,17 @@ private fun publishToSqs(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
-    publishAllowingRawMessage(subscription, message, headers, producer, logger)
-}
-
-private fun publishToSqs(
-    subscription: Subscription,
-    messages: List<String>,
-    headers: Map<String, String>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
-    publishAllowingRawMessage(subscription, messages, headers, producer, logger)
+    producer: ProducerTemplate
+): CompletableFuture<Any>? {
+    return publishAllowingRawMessage(subscription, message, headers, producer)
 }
 
 private fun publishAllowingRawMessage(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
+    producer: ProducerTemplate
+): CompletableFuture<Any>? {
     val messageToPublish = if (subscription.isRawMessageDelivery()) {
         message
     } else {
@@ -323,50 +257,35 @@ private fun publishAllowingRawMessage(
         val gson = Gson()
         gson.toJson(snsMessage)
     }
-    publishToCamel(subscription, messageToPublish, headers, producer, logger)
-}
-
-private fun publishAllowingRawMessage(
-    subscription: Subscription,
-    messages: List<String>,
-    headers: Map<String, String>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
-    val messagesToPublish = messages.map {message -> if (subscription.isRawMessageDelivery()) {
-        message
-    } else {
-        val timestamp = LocalDateTime.now()
-        val snsMessage = createSnsMessage(subscription, message, timestamp)
-        val gson = Gson()
-        gson.toJson(snsMessage)
-    }}
-    publishToCamel(subscription, messagesToPublish, headers, producer, logger)
+    return publishToCamel(subscription.decodedEndpointUrl(), messageToPublish, headers, producer)
 }
 
 private fun publishToLambda(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
+    producer: ProducerTemplate
+): CompletableFuture<Any>? {
     val timestamp = LocalDateTime.now()
     val snsMessage = createSnsMessage(subscription, message, timestamp)
     val gson = Gson()
     val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
     val event = LambdaEvent(listOf(record))
     val messageToPublish = gson.toJson(event)
-    publishToCamel(subscription, messageToPublish, headers + mapOf("Content-Type" to "application/json"), producer, logger)
+    return publishToCamel(
+        subscription.decodedEndpointUrl(),
+        messageToPublish,
+        headers + mapOf("Content-Type" to "application/json"),
+        producer
+    )
 }
 
 private fun publishToHttp(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
+    producer: ProducerTemplate
+): CompletableFuture<Any>? {
     val timestamp = LocalDateTime.now()
     val snsMessage = createSnsMessage(subscription, message, timestamp)
     val gson = Gson()
@@ -382,41 +301,26 @@ private fun publishToHttp(
         gson.toJson(snsMessage)
     }
 
-    publishToCamel(subscription, messageToPublish, httpHeaders, producer, logger)
+    return publishToCamel(subscription.decodedEndpointUrl(), messageToPublish, httpHeaders, producer)
 }
 
 private fun publishToSlack(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
-    publishToCamel(subscription, message, headers, producer, logger)
+    producer: ProducerTemplate
+): CompletableFuture<Any>? {
+    return publishToCamel(subscription.decodedEndpointUrl(), message, headers, producer)
 }
 
 private fun publishToCamel(
-    subscription: Subscription,
+    endpoint: String,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
-    logger.info("Publishing to subscription: ${subscription.arn}: message: $message, headers: $headers")
-    producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), message, headers)
-        .exceptionally { logger.error("Error publishing message $message, to subscription: $subscription", it) }
-}
-
-private fun publishToCamel(
-    subscription: Subscription,
-    messages: List<String>,
-    headers: Map<String, String>,
-    producer: ProducerTemplate,
-    logger: Logger
-) {
-    logger.info("Publishing batch to subscription: ${subscription.arn}: message: $messages, headers: $headers")
-    producer.asyncRequestBodyAndHeaders(subscription.decodedEndpointUrl(), messages, headers)
-        .exceptionally { logger.error("Error publishing message $messages, to subscription: $subscription", it) }
+    producer: ProducerTemplate
+): CompletableFuture<Any>? {
+    logger.debug("Publishing to endpoint: $endpoint: message: $message, headers: $headers")
+    return producer.asyncRequestBodyAndHeaders(endpoint, message, headers)
 }
 
 private fun createSnsMessage(

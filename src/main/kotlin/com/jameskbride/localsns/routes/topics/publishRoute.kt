@@ -63,10 +63,10 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     if (messageStructure != null) {
         val success = when (messageStructure) {
             "json" -> {
-                publishJsonStructure(message, messageAttributes, topicArn, producerTemplate, ctx, logger)
+                publishJsonStructure(message, messageAttributes, topicArn, producerTemplate, ctx)
             }
             else -> {
-                publishBasicMessageToTopic(message, messageAttributes, topicArn, producerTemplate, ctx, logger)
+                publishBasicMessageToTopic(message, messageAttributes, topicArn, producerTemplate, ctx)
                 true
             }
         }
@@ -76,7 +76,7 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
             return@route
         }
     } else {
-        publishBasicMessageToTopic(message, messageAttributes, topicArn, producerTemplate, ctx, logger)
+        publishBasicMessageToTopic(message, messageAttributes, topicArn, producerTemplate, ctx)
     }
 
 
