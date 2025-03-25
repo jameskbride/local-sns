@@ -27,7 +27,7 @@ val configRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
         val dbFile = vertx.fileSystem().readFileBlocking(dbPath)
         toJsonConfig(dbFile)
     } catch(e: Exception) {
-        logger.info("Failed to load configuration: $e")
+        logger.error("Failed to load configuration: $e")
         createNewConfig()
     }
 
