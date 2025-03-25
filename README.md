@@ -9,6 +9,7 @@ Fake Amazon Simple Notification Service (SNS) for local development. Supports:
 - List subscriptions, list subscriptions by topic endpoints
 - Get/Set subscription attribute endpoints
 - Publish message
+- Publish messages in batches
 - Subscription persistence to file, including subscription attributes
 - Subscription filtering (currently under development with some alpha features)
 - Integrations with SQS, File, HTTP, RabbitMQ, Slack, and Lambda
