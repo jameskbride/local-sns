@@ -1,5 +1,6 @@
 package com.jameskbride.localsns
 
+import com.google.gson.Gson
 import com.jameskbride.localsns.models.Configuration
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
@@ -9,7 +10,6 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.CompositeFuture
 import io.vertx.core.Vertx
-import io.vertx.core.json.JsonObject
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -159,10 +159,9 @@ class SubscribeRouteTest : BaseTest() {
         vertx.fileSystem()
             .readFile(getDbOutputPath(config))
             .onComplete { result ->
-                val configFile = result.result()
-                val jsonConfig = JsonObject(configFile)
-
-                val configuration = jsonConfig.mapTo(Configuration::class.java)
+                val configFile = result.result().toString()
+                val gson = Gson()
+                val configuration = gson.fromJson(configFile, Configuration::class.java)
                 assertEquals(configuration.version, 1)
                 assertTrue(configuration.topics.contains(topic))
                 val foundSubscription = configuration.subscriptions.find(subscriptionPredicate)
