@@ -1,6 +1,8 @@
 package com.jameskbride.localsns
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.google.gson.Gson
+import com.jameskbride.localsns.models.Configuration
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
 import com.typesafe.config.Config
@@ -28,6 +30,12 @@ fun getDbOutputPath(config: Config): String =
     System.getenv("DB_OUTPUT_PATH") ?: config.getString("db.outputPath")
 
 fun toJsonConfig(configFile: Buffer?) = JsonObject(configFile)
+
+fun bufferFromConfiguration(configuration: Configuration): Buffer {
+    val gson  = Gson()
+    val jsonObject = gson.toJson(configuration)
+    return Buffer.buffer(jsonObject)
+}
 
 fun getAwsAccountId(config: Config): String =
     System.getenv("AWS_ACCOUNT_ID") ?: config.getString("aws.accountId")
