@@ -1,13 +1,13 @@
 package com.jameskbride.localsns
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.google.gson.Gson
 import com.jameskbride.localsns.models.Configuration
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.DatabaseVerticle
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.Vertx
-import io.vertx.core.json.JsonObject
 import io.vertx.core.json.jackson.DatabindCodec
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
@@ -55,10 +55,9 @@ class DatabaseVerticleTest: BaseTest() {
             vertx.fileSystem()
                 .readFile(getDbOutputPath(config))
                 .onComplete {result ->
-                    val configFile = result.result()
-                    val jsonConfig = JsonObject(configFile)
-
-                    val configuration = jsonConfig.mapTo(Configuration::class.java)
+                    val configFile = result.result().toString()
+                    val gson = Gson()
+                    val configuration = gson.fromJson(configFile, Configuration::class.java)
                     assertEquals(configuration.version, 1)
                     assertTrue(configuration.topics.contains(topic))
                     assertTrue(configuration.subscriptions.contains(subscription))
@@ -94,10 +93,9 @@ class DatabaseVerticleTest: BaseTest() {
             vertx.fileSystem()
                 .readFile(getDbOutputPath(config))
                 .onComplete {result ->
-                    val configFile = result.result()
-                    val jsonConfig = JsonObject(configFile)
-
-                    val configuration = jsonConfig.mapTo(Configuration::class.java)
+                    val configFile = result.result().toString()
+                    val gson = Gson()
+                    val configuration = gson.fromJson(configFile, Configuration::class.java)
                     assertEquals(configuration.version, 1)
                     assertTrue(configuration.topics.contains(topic))
                     assertTrue(configuration.subscriptions.contains(subscription))
