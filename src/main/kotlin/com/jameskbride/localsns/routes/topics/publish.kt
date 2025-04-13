@@ -154,24 +154,10 @@ private fun matchesMessageAttributesFilterPolicy(
     messageAttributes: Map<String, MessageAttribute>
 ): Boolean {
     val filterPolicySubscriptionAttribute = subscription.subscriptionAttributes[FILTER_POLICY]
-    val filterPolicy = JsonObject(filterPolicySubscriptionAttribute)
-    val matched = filterPolicy.map.all {
-        if (!messageAttributes.containsKey(it.key)) {
-            false
-        } else {
-            val permittedValues = it.value as List<*>
-            val messageAttribute = messageAttributes[it.key]
-            when (messageAttribute!!.dataType) {
-                "Number" -> {
-                    val parsedAttribute = messageAttribute.value.toDouble()
-                    attributeMatchesPolicy(permittedValues, parsedAttribute)
-                }
-                else -> {
-                    attributeMatchesPolicy(permittedValues, messageAttribute.value)
-                }
-            }
-        }
-    }
+    val matched = filterPolicySubscriptionAttribute?.let { filterPolicy ->
+        val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicy)
+        messageAttributeFilterPolicy.matches(messageAttributes)
+    } ?: true
     return matched
 }
 

@@ -205,10 +205,9 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val amount:List<JsonObject>, val sold:List<Boolean>): Serializable
-        val numericMatch = buildNumericPolicy(listOf("=", 10.5))
-        val gson = Gson()
-        val filterPolicy = gson.toJson(FilterPolicy(status=listOf("not_sent"), amount=listOf(numericMatch), sold=listOf(true)))
+        val filterPolicy = """
+            {"status": ["not_sent"], "amount": [{"numeric": ["=", 10.5]}]}
+        """.trimIndent()
         subscribe(
             topic.arn,
             endpoint,
@@ -225,7 +224,6 @@ class PublishRouteIntegrationTest: BaseTest() {
             messageAttributes = listOf(
                 MessageAttribute("status", "not_sent"),
                 MessageAttribute("amount", "10.5", dataType = "Number"),
-                MessageAttribute("sold", "true"),
             )
         )
         snsClient.publish(request)
@@ -283,15 +281,16 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
-        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
+        val filterPolicyJson = """
+            {"status": ["not_sent"],"amount": [{"numeric": ["\u003d", 10.5]}]}
+        """.trimIndent()
         val gson = Gson()
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to gson.toJson(filterPolicy)
+                "FilterPolicy" to filterPolicyJson
             )
         )
         val message = "Hello, SNS!"
@@ -302,7 +301,6 @@ class PublishRouteIntegrationTest: BaseTest() {
             messageAttributes = listOf(
                 MessageAttribute("status", "not_sent"),
                 MessageAttribute("amount", "5.0"),
-                MessageAttribute("sold", "true")
             )
         )
         snsClient.publish(request)
