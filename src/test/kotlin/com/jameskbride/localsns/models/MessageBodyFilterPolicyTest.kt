@@ -45,4 +45,32 @@ class MessageBodyFilterPolicyTest {
         """.trimIndent()
         assert(!filterPolicy.matches(message))
     }
+
+    @Test
+    fun `it does not match on object message attributes`() {
+        val policyJson = """
+            {"store": ["example_corp_1"]}
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val message = """
+            {"store": {"key": "value"}}
+        """.trimIndent()
+        assert(!filterPolicy.matches(message))
+    }
+
+    @Test
+    fun `it does not match on array message attributes`() {
+        val policyJson = """
+            {"store": ["example_corp_1"]}
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val message = """
+            {"store": ["example_corp_1", "other_value"]}
+        """.trimIndent()
+        assert(!filterPolicy.matches(message))
+    }
 }
