@@ -179,4 +179,35 @@ class MessageAttributeFilterPolicyTest {
         val result = messageAttributeFilterPolicy.matches(messageAttributes)
         assert(!result) { "Expected basic String filter policy to not match message attributes" }
     }
+
+    @Test
+    fun `it matches exact numeric filter policies`() {
+        val attribute1Policy = JsonArray()
+        val numericEqualityArray = JsonArray()
+        numericEqualityArray.add("=")
+        numericEqualityArray.add("1.125")
+        val numericPolicyJsonObject = JsonObject()
+        numericPolicyJsonObject.add("numeric", numericEqualityArray)
+        attribute1Policy.add(numericPolicyJsonObject)
+
+        // {"matched": [{"numeric": ["=", "1.125"]}]}
+        val filterPolicyJsonObject = JsonObject()
+        filterPolicyJsonObject.add("matched", attribute1Policy)
+
+        val filterPolicyJson = gson.toJson(filterPolicyJsonObject)
+        val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
+
+        // {"matched": {"name": "matched", "value": "1.125", "dataType": "Number"}}
+        val messageAttribute = MessageAttribute(name="matched", value="1.125", dataType="Number")
+        // {"ignored": {"name": "ignored", "value": "value2", "dataType": "String"}}
+        val secondMessageAttribute = MessageAttribute(name="ignored", value="value2")
+
+        val messageAttributes = mapOf(
+            "matched" to messageAttribute,
+            "ignored" to secondMessageAttribute
+        )
+
+        val result = messageAttributeFilterPolicy.matches(messageAttributes)
+        assert(result) { "Expected basic String filter policy to match message attributes" }
+    }
  }
