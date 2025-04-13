@@ -56,7 +56,33 @@ class MessageAttributeFilterPolicyTest {
     }
 
     @Test
-    fun `matches when all attributes are present`() {
+    fun `does not match when only some filter policy attributes are present`() {
+        val filterPolicyJsonObject = JsonObject()
+        val attribute1Policy = JsonArray()
+        attribute1Policy.add("value1")
+        filterPolicyJsonObject.add("matched", attribute1Policy)
+
+        val attribute2Policy = JsonArray()
+        attribute2Policy.add("value2")
+        filterPolicyJsonObject.add("matched2", attribute2Policy)
+
+        val filterPolicyJson = gson.toJson(filterPolicyJsonObject)
+
+        val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
+
+        val messageAttribute = MessageAttribute(name="matched", value="value1", dataType="String")
+        val ignoredAttribute = MessageAttribute(name="ignored", value="value2")
+        val messageAttributes = mapOf(
+            "matched" to messageAttribute,
+            "ignored" to ignoredAttribute
+        )
+
+        val result = messageAttributeFilterPolicy.matches(messageAttributes)
+        assert(!result) { "Expected basic String filter policy to not match message attributes" }
+    }
+
+    @Test
+    fun `matches when all string attributes are present and match possible string values`() {
         val filterPolicyJsonObject = JsonObject()
 
         val attribute1Policy = JsonArray()
