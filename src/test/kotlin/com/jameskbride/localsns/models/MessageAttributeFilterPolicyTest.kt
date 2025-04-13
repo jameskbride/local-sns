@@ -17,16 +17,20 @@ class MessageAttributeFilterPolicyTest {
 
     @Test
     fun `matches a single string attribute`() {
+        // {"matched": ["value1"]}
         val filterPolicyJsonObject = JsonObject()
         val attribute1Policy = JsonArray()
         attribute1Policy.add("value1")
         filterPolicyJsonObject.add("matched", attribute1Policy)
-        val filterPolicyJson = gson.toJson(filterPolicyJsonObject)
 
+        val filterPolicyJson = gson.toJson(filterPolicyJsonObject)
         val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
 
-        val messageAttribute = MessageAttribute(name="attribute1", value="value1", dataType="String")
+        // {"matched": {"name": "matched", "value": "value1", "dataType": "String"}}
+        val messageAttribute = MessageAttribute(name="matched", value="value1", dataType="String")
+        // {"ignored": {"name": "ignored", "value": "value2", "dataType": "String"}}
         val secondMessageAttribute = MessageAttribute(name="ignored", value="value2")
+
         val messageAttributes = mapOf(
             "matched" to messageAttribute,
             "ignored" to secondMessageAttribute
@@ -38,14 +42,16 @@ class MessageAttributeFilterPolicyTest {
 
     @Test
     fun `does not match when filter policy attribute is not in message attributes`() {
+        // {"matched": ["value1"]}
         val filterPolicyJsonObject = JsonObject()
         val attribute1Policy = JsonArray()
         attribute1Policy.add("value1")
         filterPolicyJsonObject.add("matched", attribute1Policy)
-        val filterPolicyJson = gson.toJson(filterPolicyJsonObject)
 
+        val filterPolicyJson = gson.toJson(filterPolicyJsonObject)
         val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
 
+        // {"ignored": {"name": "ignored", "value": "value2", "dataType": "String"}}
         val secondMessageAttribute = MessageAttribute(name="ignored", value="value2")
         val messageAttributes = mapOf(
             "ignored" to secondMessageAttribute
@@ -61,16 +67,18 @@ class MessageAttributeFilterPolicyTest {
         val attribute1Policy = JsonArray()
         attribute1Policy.add("value1")
         filterPolicyJsonObject.add("matched", attribute1Policy)
-
         val attribute2Policy = JsonArray()
         attribute2Policy.add("value2")
+
+        // {"matched": ["value1"], "matched2": ["value2"]}
         filterPolicyJsonObject.add("matched2", attribute2Policy)
 
         val filterPolicyJson = gson.toJson(filterPolicyJsonObject)
-
         val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
 
+        // {"matched": {"name": "matched", "value": "value1", "dataType": "String"}}
         val messageAttribute = MessageAttribute(name="matched", value="value1", dataType="String")
+        // {"matched2": {"name": "matched2", "value": "value2", "dataType": "String"}}
         val ignoredAttribute = MessageAttribute(name="ignored", value="value2")
         val messageAttributes = mapOf(
             "matched" to messageAttribute,
@@ -92,13 +100,16 @@ class MessageAttributeFilterPolicyTest {
         val attribute2Policy = JsonArray()
         attribute2Policy.add("value2")
         filterPolicyJsonObject.add("matched2", attribute2Policy)
-
+        // {"matched": ["value1"], "matched2": ["value2"]}
         val filterPolicyJson = gson.toJson(filterPolicyJsonObject)
 
         val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
 
+        // {"matched": {"name": "matched", "value": "value1", "dataType": "String"}}
         val messageAttribute = MessageAttribute(name="matched", value="value1", dataType="String")
+        // {"matched2": {"name": "matched2", "value": "value2", "dataType": "String"}}
         val secondMessageAttribute = MessageAttribute(name="matched2", value="value2", dataType="String")
+        // {"ignored": {"name": "ignored", "value": "value2", "dataType": "String"}}
         val ignoredAttribute = MessageAttribute(name="ignored", value="value2")
         val messageAttributes = mapOf(
             "matched" to messageAttribute,
@@ -108,5 +119,38 @@ class MessageAttributeFilterPolicyTest {
 
         val result = messageAttributeFilterPolicy.matches(messageAttributes)
         assert(result) { "Expected basic String filter policy to match message attributes" }
+    }
+
+    @Test
+    fun `does not match when all string attributes are present but all values do not match`() {
+        val filterPolicyJsonObject = JsonObject()
+
+        val attribute1Policy = JsonArray()
+        attribute1Policy.add("shouldMatch")
+        filterPolicyJsonObject.add("matchOn", attribute1Policy)
+
+        val attribute2Policy = JsonArray()
+        attribute2Policy.add("shouldMatch2")
+        filterPolicyJsonObject.add("matchOn2", attribute2Policy)
+
+        // {"matchOn": ["shouldMatch"], "matchOn2": ["shouldMatch2"]}
+        val filterPolicyJson = gson.toJson(filterPolicyJsonObject)
+
+        val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
+
+        // {"matchOn": {"name": "matchOn", "value": "doesnotmatch", "dataType": "String"}}
+        val mismatchedAttribute = MessageAttribute(name="matchOn", value="doesnotmatch", dataType="String")
+        // {"matchOn2": {"name": "matchOn2", "value": "shouldMatch2", "dataType": "String"}}
+        val matchingAttribute = MessageAttribute(name="matchOn2", value="shouldMatch2", dataType="String")
+        // {"ignored": {"name": "ignored", "value": "value2", "dataType": "String"}}
+        val ignoredAttribute = MessageAttribute(name="ignored", value="value2")
+        val messageAttributes = mapOf(
+            "matchOn" to mismatchedAttribute,
+            "matchOn2" to matchingAttribute,
+            "ignored" to ignoredAttribute
+        )
+
+        val result = messageAttributeFilterPolicy.matches(messageAttributes)
+        assert(!result) { "Expected basic String filter policy to not match message attributes" }
     }
  }
