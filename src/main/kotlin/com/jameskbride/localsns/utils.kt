@@ -1,8 +1,7 @@
 package com.jameskbride.localsns
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.google.gson.Gson
-import com.google.gson.JsonObject
+import com.google.gson.*
 import com.jameskbride.localsns.models.Configuration
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
@@ -93,4 +92,44 @@ fun configureObjectMappers() {
 
     val prettyMapper = DatabindCodec.prettyMapper()
     prettyMapper.registerKotlinModule()
+}
+
+fun getElementType(firstElement: JsonElement?): Any? {
+    return when (firstElement) {
+        is JsonArray -> "Array"
+        is JsonObject -> "Object"
+        is JsonPrimitive -> {
+            if (firstElement.isString) {
+                "String"
+            } else if (firstElement.isBoolean) {
+                "Boolean"
+            } else if (firstElement.isNumber) {
+                "Number"
+            } else if (firstElement.isJsonNull) {
+                null
+            } else {
+                null
+            }
+        }
+        else -> null
+    }
+}
+
+fun validateNumericMatcher(numericMatcher: JsonObject?): Double {
+    if (numericMatcher == null) {
+        throw IllegalArgumentException("Numeric matcher cannot be null")
+    }
+    if (!numericMatcher.has("numeric")) {
+        throw IllegalArgumentException("Only numeric matcher is supported")
+    }
+    val numericMatcherArray = numericMatcher.getAsJsonArray("numeric")
+    if (numericMatcherArray.size() != 2) {
+        throw IllegalArgumentException("Numeric matcher must have exactly 2 elements")
+    }
+
+    val operator = numericMatcherArray[0].asString
+    if (operator != "=") {
+        throw IllegalArgumentException("Only equality operator is supported")
+    }
+    return numericMatcherArray[1].asDouble
 }

@@ -2,9 +2,9 @@ package com.jameskbride.localsns.models
 
 import com.google.gson.Gson
 import com.google.gson.JsonArray
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
+import com.jameskbride.localsns.getElementType
+import com.jameskbride.localsns.validateNumericMatcher
 
 class MessageAttributeFilterPolicy(filterPolicy: String) {
     private val gson = Gson()
@@ -38,27 +38,6 @@ class MessageAttributeFilterPolicy(filterPolicy: String) {
             it.value.matches(messageAttribute!!)
         }
     }
-
-    private fun getElementType(firstElement: JsonElement?): Any? {
-        return when (firstElement) {
-            is JsonArray -> "Array"
-            is JsonObject -> "Object"
-            is JsonPrimitive -> {
-                if (firstElement.isString) {
-                    "String"
-                } else if (firstElement.isBoolean) {
-                    "Boolean"
-                } else if (firstElement.isNumber) {
-                    "Number"
-                } else if (firstElement.isJsonNull) {
-                    null
-                } else {
-                    null
-                }
-            }
-            else -> null
-        }
-    }
 }
 
 interface AttributeFilterPolicy {
@@ -69,22 +48,7 @@ class NumberAttributeFilterPolicy(private val attribute: String?, numericMatcher
     private var value: Double
 
     init {
-        if (numericMatcher == null) {
-            throw IllegalArgumentException("Numeric matcher cannot be null")
-        }
-        if (!numericMatcher.has("numeric")) {
-            throw IllegalArgumentException("Only numeric matcher is supported")
-        }
-        val numericMatcherArray = numericMatcher.getAsJsonArray("numeric")
-        if (numericMatcherArray.size() != 2) {
-            throw IllegalArgumentException("Numeric matcher must have exactly 2 elements")
-        }
-
-        val operator = numericMatcherArray[0].asString
-        if (operator != "=") {
-            throw IllegalArgumentException("Only equality operator is supported")
-        }
-        value = numericMatcherArray[1].asDouble
+        value = validateNumericMatcher(numericMatcher)
     }
 
     override fun matches(messageAttribute: MessageAttribute): Boolean {
