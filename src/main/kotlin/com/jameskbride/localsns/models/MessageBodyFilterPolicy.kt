@@ -19,7 +19,7 @@ class MessageBodyFilterPolicy(filterPolicy: String) {
 
         val attributePolicies = filterPolicyJsonObject.asMap().map {
             val attributeType = getElementType(messageJsonObject.get(it.key))
-            if (!listOf("String", "Number").contains(attributeType)) {
+            if (!listOf("String", "Number", "Boolean").contains(attributeType)) {
                 it.key to NonMatchingMessageBodyFilterPolicy()
             } else {
                 val filterValue = it.value.asJsonArray
@@ -28,6 +28,10 @@ class MessageBodyFilterPolicy(filterPolicy: String) {
                 val attributePolicy = when (elementType) {
                     "String" -> {
                         StringMessageBodyFilterPolicy(it.key, filterValue.map { value -> value.asString })
+                    }
+                    "Boolean" -> {
+                        val booleanValue = firstElement?.asBoolean
+                        BooleanMessageBodyFilterPolicy(it.key, listOf(booleanValue!!))
                     }
                     "Object" -> {
                         val numericMatcher = firstElement?.asJsonObject
@@ -56,6 +60,13 @@ interface MessageFilterPolicy {
 class StringMessageBodyFilterPolicy(private val attribute: String, private val values: List<String>): MessageFilterPolicy {
     override fun matches(message: JsonObject): Boolean {
         val messageAttribute = message.get(attribute)?.asString ?: return false
+        return values.contains(messageAttribute)
+    }
+}
+
+class BooleanMessageBodyFilterPolicy(private val attribute: String, private val values: List<Boolean>): MessageFilterPolicy {
+    override fun matches(message: JsonObject): Boolean {
+        val messageAttribute = message.get(attribute)?.asBoolean ?: return false
         return values.contains(messageAttribute)
     }
 }

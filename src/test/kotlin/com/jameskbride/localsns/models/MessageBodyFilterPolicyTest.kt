@@ -61,6 +61,34 @@ class MessageBodyFilterPolicyTest {
     }
 
     @Test
+    fun `it matches on boolean filter policies`() {
+        val policyJson = """
+            {"store": [true]}
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val message = """
+            {"store": true}
+        """.trimIndent()
+        assert(filterPolicy.matches(message))
+    }
+
+    @Test
+    fun `it does not match on boolean filter policies with different values`() {
+        val policyJson = """
+            {"store": [true]}
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val message = """
+            {"store": false}
+        """.trimIndent()
+        assert(!filterPolicy.matches(message))
+    }
+
+    @Test
     fun `it does not match on object message attributes`() {
         val policyJson = """
             {"store": ["example_corp_1"]}
