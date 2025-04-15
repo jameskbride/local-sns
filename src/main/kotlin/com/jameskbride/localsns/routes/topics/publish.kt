@@ -1,14 +1,13 @@
 package com.jameskbride.localsns.routes.topics
 
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.jameskbride.localsns.getSubscriptionsMap
 import com.jameskbride.localsns.logAndReturnError
 import com.jameskbride.localsns.models.*
 import com.jameskbride.localsns.models.SubscriptionAttribute.Companion.FILTER_POLICY
 import io.vertx.core.Vertx
-import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
-import io.vertx.kotlin.core.json.get
 import org.apache.camel.ProducerTemplate
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -41,21 +40,22 @@ fun publishJsonStructure(
 ): Boolean {
     logger.info("Publishing message to topic with json structure {}", topicArn)
     val subscriptions = getTopicSubscriptions(routingContext.vertx(), topicArn)
+    val gson = Gson()
     try {
-        val messages = JsonObject(message)
-        if (messages.get<String?>("default") == null) {
+        val messages = gson.fromJson(message, JsonObject::class.java)
+        if (messages.get("default") == null) {
             logAndReturnError(routingContext, logger, "Attribute 'default' is required when MessageStructure is json.")
             return false
         }
 
         subscriptions.map { subscription ->
-            val messageToPublish: Any = if (messages.containsKey(subscription.protocol)) {
-                messages[subscription.protocol]
+            val messageToPublish: String = if (messages.has(subscription.protocol)) {
+                messages[subscription.protocol].asString
             } else {
-                messages["default"]
+                messages["default"].asString
             }
             logger.debug("Messages to publish: $messageToPublish")
-            publishToSubscription(subscription, messageToPublish as String, messageAttributes, producerTemplate)
+            publishToSubscription(subscription, messageToPublish, messageAttributes, producerTemplate)
                 ?.exceptionally { logger.error("Error publishing to subscription: ${subscription.arn}", it) }
         }
     } catch (ex: Exception) {
@@ -163,61 +163,10 @@ private fun matchesMessageAttributesFilterPolicy(
 
 private fun matchesMessageBodyFilterPolicy(subscription: Subscription, message:String): Boolean {
     val filterPolicySubscriptionAttribute = subscription.subscriptionAttributes[FILTER_POLICY]
-    val filterPolicy = JsonObject(filterPolicySubscriptionAttribute)
-    val messageJson = JsonObject(message)
-    val matched = filterPolicy.map.all { filterPolicyAttribute ->
-        if (!messageJson.containsKey(filterPolicyAttribute.key)) {
-            false
-        } else {
-            val attribute = messageJson.getValue(filterPolicyAttribute.key)
-            attributeMatchesPolicy(filterPolicyAttribute.value as List<*>, attribute)
-        }
-    }
+    val gson = Gson()
+    val messageJson = gson.fromJson(message, JsonObject::class.java)
+    val matched = filterPolicySubscriptionAttribute?.let { MessageBodyFilterPolicy(it).matches(messageJson) } ?: true
     return matched
-}
-
-private fun attributeMatchesPolicy(
-    attributeMatchPolicy: List<*>,
-    value: Any?
-): Boolean {
-    return attributeMatchPolicy.any {
-        when (val permittedValue = attributeMatchPolicy.firstOrNull()) {
-            is String -> {
-                attributeMatchPolicy.map { it.toString() }.contains(value)
-            }
-
-            is LinkedHashMap<*, *> -> {
-                if (permittedValue.containsKey("numeric")) {
-                    numericMatches(permittedValue, value)
-                } else false
-            }
-
-            is Boolean -> {
-                permittedValue.toString() == value.toString()
-            }
-
-            else -> false
-        }
-    }
-}
-
-private fun numericMatches(permittedValue: LinkedHashMap<*, *>, attribute: Any?): Boolean {
-    val matchParams = permittedValue["numeric"] as List<*>
-    return when (matchParams.size) {
-        2 -> {
-            numberMatches(matchParams, attribute)
-        }
-
-        else -> false
-    }
-}
-
-private fun numberMatches(matchParams: List<*>, value: Any?): Boolean {
-    val operator = matchParams[0]
-    return when (operator) {
-        "=" -> value as Double == matchParams[1] as Double
-        else -> false
-    }
 }
 
 private fun publishToSqs(
