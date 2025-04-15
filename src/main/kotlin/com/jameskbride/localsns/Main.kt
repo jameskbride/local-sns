@@ -24,8 +24,9 @@ class Main {
         }
 
         private fun start(vertx: Vertx) {
-            vertx.deployVerticle("com.jameskbride.localsns.verticles.MainVerticle")
             vertx.deployVerticle("com.jameskbride.localsns.verticles.DatabaseVerticle")
+            vertx.deployVerticle("com.jameskbride.localsns.verticles.MainVerticle")
+            vertx.deployVerticle("com.jameskbride.localsns.verticles.PublishVerticle")
         }
     }
 }

@@ -9,6 +9,7 @@ import com.jameskbride.localsns.verticles.MainVerticle
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.CompositeFuture
+import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
@@ -30,10 +31,13 @@ class SubscribeRouteTest : BaseTest() {
             val mainFuture = vertx.deployVerticle(MainVerticle())
             val databaseFuture = vertx.deployVerticle(DatabaseVerticle())
             configureObjectMappers()
-            CompositeFuture.all(mainFuture, databaseFuture)
-                .onComplete {
+            Future.all (mainFuture, databaseFuture).onComplete {
+                if (it.succeeded()) {
                     testContext.completeNow()
+                } else {
+                    testContext.failNow(it.cause())
                 }
+            }
         }
     }
 

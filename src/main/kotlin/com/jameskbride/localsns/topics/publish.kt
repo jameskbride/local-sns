@@ -3,11 +3,9 @@ package com.jameskbride.localsns.topics
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.jameskbride.localsns.getSubscriptionsMap
-import com.jameskbride.localsns.logAndReturnError
 import com.jameskbride.localsns.models.*
 import com.jameskbride.localsns.models.SubscriptionAttribute.Companion.FILTER_POLICY
 import io.vertx.core.Vertx
-import io.vertx.ext.web.RoutingContext
 import org.apache.camel.ProducerTemplate
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -18,9 +16,11 @@ import java.util.concurrent.CompletableFuture
 
 private val logger: Logger = LogManager.getLogger("publish")
 
+data class PublishRequest(val message: String, val messageAttributes: Map<String, MessageAttribute> = mapOf(), val topicArn: String)
+
 fun getTopicSubscriptions(
-    vertx: Vertx,
-    topicArn: String?
+    topicArn: String?,
+    vertx: Vertx
 ): List<Subscription> {
     val subscriptionsMap = getSubscriptionsMap(vertx)
     val subscriptions = subscriptionsMap!!.getOrDefault(topicArn, listOf())
@@ -32,22 +32,15 @@ fun getTopicArn(topicArn: String?, targetArn: String?): String? {
 }
 
 fun publishJsonStructure(
-    message: String?,
-    messageAttributes: Map<String, MessageAttribute>,
-    topicArn: String,
+    publishRequest: PublishRequest,
     producerTemplate: ProducerTemplate,
-    routingContext: RoutingContext
+    vertx: Vertx
 ): Boolean {
-    logger.info("Publishing message to topic with json structure {}", topicArn)
-    val subscriptions = getTopicSubscriptions(routingContext.vertx(), topicArn)
+    logger.info("Publishing message to topic with json structure {}", publishRequest.topicArn)
+    val subscriptions = getTopicSubscriptions(publishRequest.topicArn, vertx)
     val gson = Gson()
     try {
-        val messages = gson.fromJson(message, JsonObject::class.java)
-        if (messages.get("default") == null) {
-            logAndReturnError(routingContext, logger, "Attribute 'default' is required when MessageStructure is json.")
-            return false
-        }
-
+        val messages = gson.fromJson(publishRequest.message, JsonObject::class.java)
         subscriptions.map { subscription ->
             val messageToPublish: String = if (messages.has(subscription.protocol)) {
                 messages[subscription.protocol].asString
@@ -55,12 +48,11 @@ fun publishJsonStructure(
                 messages["default"].asString
             }
             logger.debug("Messages to publish: $messageToPublish")
-            publishToSubscription(subscription, messageToPublish, messageAttributes, producerTemplate)
+            publishToSubscription(subscription, messageToPublish, publishRequest.messageAttributes, producerTemplate)
                 ?.exceptionally { logger.error("Error publishing to subscription: ${subscription.arn}", it) }
         }
     } catch (ex: Exception) {
         ex.printStackTrace()
-        logAndReturnError(routingContext, logger, "Message must be valid JSON")
         return false
     }
 
@@ -68,16 +60,14 @@ fun publishJsonStructure(
 }
 
 fun publishBasicMessageToTopic(
-    message: String,
-    messageAttributes: Map<String, MessageAttribute>,
-    topicArn: String,
+    publishRequest: PublishRequest,
     producerTemplate: ProducerTemplate,
-    routingContext: RoutingContext
+    vertx: Vertx
 ) {
-    val subscriptions = getTopicSubscriptions(routingContext.vertx(), topicArn)
-    logger.info("Publishing to topic: $topicArn")
+    val subscriptions = getTopicSubscriptions(publishRequest.topicArn, vertx)
+    logger.info("Publishing to topic: ${publishRequest.topicArn}")
     subscriptions.forEach { subscription ->
-        publishToSubscription(subscription, message, messageAttributes, producerTemplate)
+        publishToSubscription(subscription, publishRequest.message, publishRequest.messageAttributes, producerTemplate)
             ?.exceptionally { logger.error("An error occurred when publishing to: ${subscription.endpoint}", it) }
     }
 }
@@ -85,7 +75,7 @@ fun publishBasicMessageToTopic(
 private fun publishToSubscription(
     subscription: Subscription,
     message: String,
-    messageAttributes: Map<String, MessageAttribute>,
+    messageAttributes: Map<String, MessageAttribute> = mapOf(),
     producer: ProducerTemplate
 ): CompletableFuture<Any>? {
     val matchesFilterPolicy = matchesFilterPolicy(subscription, message, messageAttributes)
@@ -138,20 +128,21 @@ private fun publishToSubscription(
 private fun matchesFilterPolicy(
     subscription: Subscription,
     message: String,
-    messageAttributes: Map<String, MessageAttribute>
-) = if (subscription.subscriptionAttributes.containsKey(FILTER_POLICY)) {
+    messageAttributes: Map<String, MessageAttribute> = mapOf()
+):Boolean {
+    if (!subscription.subscriptionAttributes.containsKey("FilterPolicy")) {
+        return true
+    }
     val filterPolicyScope = subscription.subscriptionAttributes.get("FilterPolicyScope")
-    when (filterPolicyScope) {
+    return when (filterPolicyScope) {
         "MessageBody" -> matchesMessageBodyFilterPolicy(subscription, message)
         else -> matchesMessageAttributesFilterPolicy(subscription, messageAttributes)
     }
-} else {
-    true
 }
 
 private fun matchesMessageAttributesFilterPolicy(
     subscription: Subscription,
-    messageAttributes: Map<String, MessageAttribute>
+    messageAttributes: Map<String, MessageAttribute> = mapOf()
 ): Boolean {
     val filterPolicySubscriptionAttribute = subscription.subscriptionAttributes[FILTER_POLICY]
     val matched = filterPolicySubscriptionAttribute?.let { filterPolicy ->

@@ -6,8 +6,10 @@ import com.google.gson.JsonObject
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.MainVerticle
+import com.jameskbride.localsns.verticles.PublishVerticle
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
 import io.vertx.ext.web.Router
@@ -44,7 +46,16 @@ class PublishRouteIntegrationTest: BaseTest() {
 
     @BeforeEach
     fun setup(vertx: Vertx, testContext: VertxTestContext) {
-        vertx.deployVerticle(MainVerticle(), testContext.succeeding { _ -> testContext.completeNow() })
+        Future.all(
+            vertx.deployVerticle(MainVerticle()),
+            vertx.deployVerticle(PublishVerticle())
+        ).onComplete {
+            if (it.succeeded()) {
+                testContext.completeNow()
+            } else {
+                testContext.failNow(it.cause())
+            }
+        }
         router.clear()
         deleteAllQueues()
     }
@@ -284,7 +295,6 @@ class PublishRouteIntegrationTest: BaseTest() {
         val filterPolicyJson = """
             {"status": ["not_sent"],"amount": [{"numeric": ["\u003d", 10.5]}]}
         """.trimIndent()
-        val gson = Gson()
         subscribe(
             topic.arn,
             endpoint,
