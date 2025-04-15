@@ -475,21 +475,21 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
-        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
-        val gson = Gson()
+        val filterPolicy = """
+            { "status": ["not_sent"], "amount": [{"numeric": ["=", 10.5]}], "sold": [true] }
+        """.trimIndent()
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to gson.toJson(filterPolicy),
+                "FilterPolicy" to filterPolicy,
                 "FilterPolicyScope" to "MessageBody",
             )
         )
         data class Message(val status:String, val amount:Double, val sold:Boolean)
         val message = Message(status="not_sent", amount=7.0, sold=false)
-
+        val gson = Gson()
         val request = publishRequest(
             topic,
             gson.toJson(message),
