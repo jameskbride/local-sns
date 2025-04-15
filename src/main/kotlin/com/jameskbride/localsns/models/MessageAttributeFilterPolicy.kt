@@ -3,8 +3,8 @@ package com.jameskbride.localsns.models
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
-import com.jameskbride.localsns.getElementType
-import com.jameskbride.localsns.validateNumericMatcher
+import com.jameskbride.localsns.subscriptions.getElementType
+import com.jameskbride.localsns.subscriptions.validateNumericMatcher
 
 class MessageAttributeFilterPolicy(filterPolicy: String) {
     private val gson = Gson()
