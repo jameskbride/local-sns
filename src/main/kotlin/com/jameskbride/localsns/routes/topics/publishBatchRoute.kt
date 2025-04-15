@@ -3,6 +3,8 @@ package com.jameskbride.localsns.routes.topics
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.PublishBatchRequestEntry
 import com.jameskbride.localsns.models.Topic
+import com.jameskbride.localsns.topics.publishBasicMessageToTopic
+import com.jameskbride.localsns.topics.publishJsonStructure
 import io.vertx.ext.web.RoutingContext
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager

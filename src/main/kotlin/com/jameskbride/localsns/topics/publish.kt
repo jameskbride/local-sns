@@ -1,4 +1,4 @@
-package com.jameskbride.localsns.routes.topics
+package com.jameskbride.localsns.topics
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject

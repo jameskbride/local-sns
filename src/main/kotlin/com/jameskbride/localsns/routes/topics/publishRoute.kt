@@ -6,6 +6,9 @@ import com.jameskbride.localsns.getTopicsMap
 import com.jameskbride.localsns.logAndReturnError
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
+import com.jameskbride.localsns.topics.getTopicArn
+import com.jameskbride.localsns.topics.publishBasicMessageToTopic
+import com.jameskbride.localsns.topics.publishJsonStructure
 import io.vertx.ext.web.RoutingContext
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
