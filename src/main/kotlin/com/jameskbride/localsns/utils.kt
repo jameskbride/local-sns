@@ -98,6 +98,7 @@ fun getElementType(firstElement: JsonElement?): Any? {
     return when (firstElement) {
         is JsonArray -> "Array"
         is JsonObject -> "Object"
+        is JsonNull -> "null"
         is JsonPrimitive -> {
             if (firstElement.isString) {
                 "String"
@@ -105,8 +106,6 @@ fun getElementType(firstElement: JsonElement?): Any? {
                 "Boolean"
             } else if (firstElement.isNumber) {
                 "Number"
-            } else if (firstElement.isJsonNull) {
-                null
             } else {
                 null
             }

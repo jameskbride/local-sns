@@ -1,6 +1,7 @@
 package com.jameskbride.localsns.models
 
 import com.google.gson.Gson
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.jameskbride.localsns.getElementType
 import com.jameskbride.localsns.validateNumericMatcher
@@ -19,7 +20,7 @@ class MessageBodyFilterPolicy(filterPolicy: String) {
 
         val attributePolicies = filterPolicyJsonObject.asMap().map {
             val attributeType = getElementType(messageJsonObject.get(it.key))
-            if (!listOf("String", "Number", "Boolean").contains(attributeType)) {
+            if (!listOf("String", "Number", "Boolean", "null").contains(attributeType)) {
                 it.key to NonMatchingMessageBodyFilterPolicy()
             } else {
                 val filterValue = it.value.asJsonArray
@@ -36,6 +37,9 @@ class MessageBodyFilterPolicy(filterPolicy: String) {
                     "Object" -> {
                         val numericMatcher = firstElement?.asJsonObject
                         NumberMessageBodyFilterPolicy(it.key, numericMatcher!!)
+                    }
+                    "null" -> {
+                        NullMessageBodyFilterFilterPolicy(it.key)
                     }
                     else -> {
                         throw IllegalArgumentException("Unsupported filter policy value type")
@@ -68,6 +72,12 @@ class BooleanMessageBodyFilterPolicy(private val attribute: String, private val 
     override fun matches(message: JsonObject): Boolean {
         val messageAttribute = message.get(attribute)?.asBoolean ?: return false
         return values.contains(messageAttribute)
+    }
+}
+
+class NullMessageBodyFilterFilterPolicy(private val attribute: String): MessageFilterPolicy {
+    override fun matches(message: JsonObject): Boolean {
+        return message.get(attribute)?.isJsonNull ?: false
     }
 }
 

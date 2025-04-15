@@ -103,6 +103,34 @@ class MessageBodyFilterPolicyTest {
     }
 
     @Test
+    fun `it matches on null message attributes`() {
+        val policyJson = """
+            {"store": [null]}
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val message = """
+            {"store": null}
+        """.trimIndent()
+        assert(filterPolicy.matches(message))
+    }
+
+    @Test
+    fun `it does not match on null message attributes with different values`() {
+        val policyJson = """
+            {"store": [null]}
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val message = """
+            {"store": "not null"}
+        """.trimIndent()
+        assert(!filterPolicy.matches(message))
+    }
+
+    @Test
     fun `it does not match on array message attributes`() {
         val policyJson = """
             {"store": ["example_corp_1"]}
