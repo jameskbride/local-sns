@@ -1,8 +1,18 @@
 package com.jameskbride.localsns.models
 
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class MessageBodyFilterPolicyTest {
+
+    private lateinit var gson: Gson
+
+    @BeforeEach
+    fun setup() {
+        gson = Gson()
+    }
 
     @Test
     fun `it matches a message with a filter policy`() {
@@ -15,7 +25,7 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": "example_corp_1"}
         """.trimIndent()
-        assert(filterPolicy.matches(message))
+        assert(filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 
     @Test
@@ -29,7 +39,7 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": "does not match"}
         """.trimIndent()
-        assert(!filterPolicy.matches(message))
+        assert(!filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 
     @Test
@@ -43,7 +53,7 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": "example_corp_1"}
         """.trimIndent()
-        assert(!filterPolicy.matches(message))
+        assert(!filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 
     @Test
@@ -57,7 +67,7 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": 1}
         """.trimIndent()
-        assert(filterPolicy.matches(message))
+        assert(filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 
     @Test
@@ -71,7 +81,7 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": true}
         """.trimIndent()
-        assert(filterPolicy.matches(message))
+        assert(filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 
     @Test
@@ -85,7 +95,7 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": false}
         """.trimIndent()
-        assert(!filterPolicy.matches(message))
+        assert(!filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 
     @Test
@@ -99,7 +109,7 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": {"key": "value"}}
         """.trimIndent()
-        assert(!filterPolicy.matches(message))
+        assert(!filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 
     @Test
@@ -113,7 +123,7 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": null}
         """.trimIndent()
-        assert(filterPolicy.matches(message))
+        assert(filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 
     @Test
@@ -127,7 +137,7 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": "not null"}
         """.trimIndent()
-        assert(!filterPolicy.matches(message))
+        assert(!filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 
     @Test
@@ -141,6 +151,6 @@ class MessageBodyFilterPolicyTest {
         val message = """
             {"store": ["example_corp_1", "other_value"]}
         """.trimIndent()
-        assert(!filterPolicy.matches(message))
+        assert(!filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
 }

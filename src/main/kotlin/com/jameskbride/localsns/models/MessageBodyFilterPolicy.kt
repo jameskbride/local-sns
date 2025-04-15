@@ -9,9 +9,7 @@ class MessageBodyFilterPolicy(filterPolicy: String) {
     private val gson = Gson()
     private val filterPolicyJsonObject = gson.fromJson(filterPolicy, JsonObject::class.java)
 
-    fun matches(message: String): Boolean {
-        val messageJsonObject = gson.fromJson(message, JsonObject::class.java)
-
+    fun matches(messageJsonObject: JsonObject): Boolean {
         val allKeysPresent = filterPolicyJsonObject.asMap().all { messageJsonObject.has(it.key) }
         if (!allKeysPresent) {
             return false
