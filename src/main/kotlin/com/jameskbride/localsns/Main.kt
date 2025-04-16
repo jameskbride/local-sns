@@ -1,6 +1,8 @@
 package com.jameskbride.localsns
 
 import com.typesafe.config.ConfigFactory
+import io.vertx.core.DeploymentOptions
+import io.vertx.core.ThreadingModel
 import io.vertx.core.Vertx
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -26,7 +28,8 @@ class Main {
         private fun start(vertx: Vertx) {
             vertx.deployVerticle("com.jameskbride.localsns.verticles.DatabaseVerticle")
             vertx.deployVerticle("com.jameskbride.localsns.verticles.MainVerticle")
-            vertx.deployVerticle("com.jameskbride.localsns.verticles.PublishVerticle")
+            val options = DeploymentOptions().setThreadingModel(ThreadingModel.WORKER)
+            vertx.deployVerticle("com.jameskbride.localsns.verticles.PublishVerticle", options)
         }
     }
 }
