@@ -2,12 +2,18 @@ package com.jameskbride.localsns
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.reflect.TypeToken
 import com.jameskbride.localsns.models.Configuration
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
+import com.jameskbride.localsns.serialization.ConfigurationTypeAdapter
+import com.jameskbride.localsns.serialization.SubscriptionTypeAdapter
+import com.jameskbride.localsns.serialization.TopicTypeAdapter
 import com.jameskbride.localsns.verticles.DatabaseVerticle
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.Vertx
+import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.jackson.DatabindCodec
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
@@ -106,5 +112,101 @@ class DatabaseVerticleTest: BaseTest() {
         }
 
         vertx.eventBus().publish("configChange", "conf")
+    }
+
+    @Tag("skipForCI")
+    @Test
+    fun `it ensures empty collections for the Configuration are deserialized correctly`(vertx: Vertx, testContext: VertxTestContext) {
+        val configJson = """
+            {
+                "version": 1,
+                "timestamp": ${System.currentTimeMillis()},
+                "topics": null,
+                "subscriptions": null
+            }
+        """.trimIndent()
+
+        val configPath = getDbOutputPath(ConfigFactory.load())
+        vertx.fileSystem()
+            .writeFile(configPath, Buffer.buffer(configJson))
+            .onComplete {
+                vertx.fileSystem()
+                    .readFile(configPath)
+                    .onComplete { result ->
+                        val configFile = result.result().toString()
+                        val gson = GsonBuilder()
+                            .registerTypeAdapter(Configuration::class.java, ConfigurationTypeAdapter())
+                            .registerTypeAdapter(Subscription::class.java, SubscriptionTypeAdapter())
+                            .registerTypeAdapter(Topic::class.java, TopicTypeAdapter())
+                            .create()
+                        val configuration = gson.fromJson(configFile, Configuration::class.java)
+
+                        assertEquals(1, configuration.version)
+                        assertNotNull(configuration.topics)
+                        assertTrue(configuration.topics.isEmpty())
+                        assertNotNull(configuration.subscriptions)
+                        assertTrue(configuration.subscriptions.isEmpty())
+                        testContext.completeNow()
+                    }
+            }
+    }
+
+    @Tag("skipForCI")
+    @Test
+    fun `it insures empty collections for Subscriptions in the Configuration are deserialized correctly`(vertx: Vertx, testContext: VertxTestContext) {
+        val configJson = """
+            {
+                "version": 1,
+                "timestamp": ${System.currentTimeMillis()},
+                "topics": null,
+                "subscriptions": [
+                    {
+                        "topicArn": "arn:aws:sns:us-east-1:123456789012:topic1",
+                        "arn": "arn:aws:sns:us-east-1:123456789012:subscription1",
+                        "owner": "owner",
+                        "protocol": "sqs",
+                        "endpoint": "http://example.com",
+                        "subscriptionAttributes": null
+                    }
+                ]
+            }
+        """.trimIndent()
+
+        val configPath = getDbOutputPath(ConfigFactory.load())
+        vertx.fileSystem()
+            .writeFile(configPath, Buffer.buffer(configJson))
+            .onComplete {
+                vertx.fileSystem()
+                    .readFile(configPath)
+                    .onComplete { result ->
+                        val configFile = result.result().toString()
+                        val gson = GsonBuilder()
+                            .registerTypeAdapter(Configuration::class.java, ConfigurationTypeAdapter())
+                            .registerTypeAdapter(Subscription::class.java, SubscriptionTypeAdapter())
+                            .registerTypeAdapter(Topic::class.java, TopicTypeAdapter())
+                            .create()
+
+                        // Use TypeToken to specify the type of the Configuration
+                        val configurationType = object : TypeToken<Configuration>() {}.type
+                        val configuration = gson.fromJson<Configuration>(configFile, configurationType)
+
+                        assertEquals(1, configuration.version)
+                        assertNotNull(configuration.topics)
+                        assertTrue(configuration.topics.isEmpty())
+                        assertNotNull(configuration.subscriptions)
+                        assertEquals(1, configuration.subscriptions.size)
+
+                        val subscription = configuration.subscriptions[0]
+                        assertEquals("arn:aws:sns:us-east-1:123456789012:topic1", subscription.topicArn)
+                        assertEquals("arn:aws:sns:us-east-1:123456789012:subscription1", subscription.arn)
+                        assertEquals("owner", subscription.owner)
+                        assertEquals("sqs", subscription.protocol)
+                        assertEquals("http://example.com", subscription.endpoint)
+                        assertNotNull(subscription.subscriptionAttributes)
+                        assertTrue(subscription.subscriptionAttributes.isEmpty())
+
+                        testContext.completeNow()
+                    }
+            }
     }
 }

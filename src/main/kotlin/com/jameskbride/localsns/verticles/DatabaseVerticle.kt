@@ -1,8 +1,14 @@
 package com.jameskbride.localsns.verticles
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.Configuration
+import com.jameskbride.localsns.models.Subscription
+import com.jameskbride.localsns.models.Topic
+import com.jameskbride.localsns.serialization.ConfigurationTypeAdapter
+import com.jameskbride.localsns.serialization.SubscriptionTypeAdapter
+import com.jameskbride.localsns.serialization.TopicTypeAdapter
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
@@ -94,7 +100,11 @@ class DatabaseVerticle: AbstractVerticle() {
     private fun readConfiguration(result: Buffer): Configuration {
         val jsonString = result.toString()
         logger.info("Loading configuration: $jsonString")
-        val gson = Gson()
+        val gson = GsonBuilder()
+            .registerTypeAdapter(Configuration::class.java, ConfigurationTypeAdapter())
+            .registerTypeAdapter(Subscription::class.java, SubscriptionTypeAdapter())
+            .registerTypeAdapter(Topic::class.java, TopicTypeAdapter())
+            .create()
         val configuration = gson.fromJson(jsonString, Configuration::class.java)
 
         return configuration
