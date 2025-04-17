@@ -1,12 +1,13 @@
 package com.jameskbride.localsns
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.google.gson.*
+import com.jameskbride.localsns.models.Configuration
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
 import com.typesafe.config.Config
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
-import io.vertx.core.json.JsonObject
 import io.vertx.core.json.jackson.DatabindCodec
 import io.vertx.core.shareddata.LocalMap
 import io.vertx.ext.web.RoutingContext
@@ -27,7 +28,17 @@ fun getDbPath(config: Config): String? =
 fun getDbOutputPath(config: Config): String =
     System.getenv("DB_OUTPUT_PATH") ?: config.getString("db.outputPath")
 
-fun toJsonConfig(configFile: Buffer?) = JsonObject(configFile)
+fun toJsonConfig(configFile: Buffer?): JsonObject {
+    val gson = Gson()
+    val buffer = configFile.toString()
+    return gson.fromJson(buffer, JsonObject::class.java)
+}
+
+fun bufferFromConfiguration(configuration: Configuration): Buffer {
+    val gson  = Gson()
+    val jsonObject = gson.toJson(configuration)
+    return Buffer.buffer(jsonObject)
+}
 
 fun getAwsAccountId(config: Config): String =
     System.getenv("AWS_ACCOUNT_ID") ?: config.getString("aws.accountId")

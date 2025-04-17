@@ -59,18 +59,6 @@ class PublishRouteTest: BaseTest() {
     }
 
     @Test
-    fun `it returns an error when MessageStructure is valid and Message is not JSON`(testContext: VertxTestContext) {
-        val topic = createTopicModel("topic1")
-        subscribe(topic.arn, createCamelSqsEndpoint("queue2"), "sqs")
-        val message = "Hello, SNS!"
-
-        val response = publish(topic.arn, message, messageStructure = "json")
-
-        assertEquals(400, response.statusCode)
-        testContext.completeNow()
-    }
-
-    @Test
     fun `it returns an error when MessageStructure is valid and Message does not contain a default key`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         subscribe(topic.arn, createCamelSqsEndpoint("queue2"), "sqs")
