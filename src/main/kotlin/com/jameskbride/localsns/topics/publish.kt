@@ -52,7 +52,7 @@ fun publishJsonStructure(
                 ?.exceptionally { logger.error("Error publishing to subscription: ${subscription.arn}", it) }
         }
     } catch (ex: Exception) {
-        ex.printStackTrace()
+        logger.error(ex.message, ex)
         return false
     }
 

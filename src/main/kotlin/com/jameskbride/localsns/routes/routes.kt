@@ -31,7 +31,6 @@ val getRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
         route(ctx)
     } catch(ex: Exception) {
         logger.error(ex)
-        ex.printStackTrace()
         logAndReturnError(ctx, logger, ex.message ?: INTERNAL_ERROR, INTERNAL_ERROR, 500)
     }
 }
