@@ -80,6 +80,17 @@ class SubscribeRouteTest : BaseTest() {
     }
 
     @Test
+    fun `it returns an error when the subscription endpoint is invalid`(testContext: VertxTestContext) {
+        val topic = "topic1"
+        val topicResponse = createTopic(topic)
+        val topicArn = getTopicArnFromResponse(topicResponse)
+        val response = subscribe(topicArn, "http://localhost:9324", "sqs")
+        assertEquals(400, response.statusCode)
+
+        testContext.completeNow()
+    }
+
+    @Test
     fun `it can subscribe to a topic`(vertx: Vertx, testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         val queueName = "queue1"
