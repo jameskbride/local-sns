@@ -36,7 +36,7 @@ class MessageBodyFilterPolicy(filterPolicy: String) {
                         NumberMessageBodyFilterPolicy(it.key, numericMatcher!!)
                     }
                     "null" -> {
-                        NullMessageBodyFilterFilterPolicy(it.key)
+                        NullMessageBodyFilterPolicy(it.key)
                     }
                     else -> {
                         throw IllegalArgumentException("Unsupported filter policy value type")
@@ -72,7 +72,7 @@ class BooleanMessageBodyFilterPolicy(private val attribute: String, private val 
     }
 }
 
-class NullMessageBodyFilterFilterPolicy(private val attribute: String): MessageFilterPolicy {
+class NullMessageBodyFilterPolicy(private val attribute: String): MessageFilterPolicy {
     override fun matches(message: JsonObject): Boolean {
         return message.get(attribute)?.isJsonNull ?: false
     }
