@@ -25,34 +25,37 @@ class DatabaseVerticle: AbstractVerticle() {
     private val logger: Logger = LogManager.getLogger(DatabaseVerticle::class.java)
 
     override fun start(startPromise: Promise<Void>) {
-        logger.info("Starting database service...")
-        val config = ConfigFactory.load()
-        val vertx = this.vertx
-        val dbPath = getDbOutputPath(config)
-        vertx.fileSystem()
-            .readFile(getDbPath(config))
-            .recover { throwable ->
-                logger.error("Failed to load configuration: ${throwable.message}")
-                logger.info("Creating an empty configuration...")
-                val configuration = Configuration(
-                    version = 1,
-                    timestamp = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
-                )
-                Future.succeededFuture(
-                    bufferFromConfiguration(configuration)
-                )
+        vertx.eventBus().consumer<String>("loadConfig") {
+            logger.info("Loading configuration...")
+            val config = ConfigFactory.load()
+            val vertx = this.vertx
+            vertx.fileSystem()
+                .readFile(getDbPath(config))
+                .recover { throwable ->
+                    logger.error("Failed to load configuration: ${throwable.message}")
+                    logger.info("Creating an empty configuration...")
+                    val configuration = Configuration(
+                        version = 1,
+                        timestamp = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+                    )
+                    Future.succeededFuture(
+                        bufferFromConfiguration(configuration)
+                    )
 
-            }.compose { buffer ->
-                val configuration = readConfiguration(buffer)
-                logger.info("Configuration loaded successfully.")
-                storeConfiguration(vertx, configuration).map(configuration)
-            }
-            .onFailure { throwable ->
-                logger.error("Failed to initialize the application: ${throwable.message}")
-            }
+                }.compose { buffer ->
+                    val configuration = readConfiguration(buffer)
+                    logger.info("Configuration loaded successfully.")
+                    storeConfiguration(vertx, configuration).map(configuration)
+                }
+                .onFailure { throwable ->
+                    logger.error("Failed to initialize the application: ${throwable.message}")
+                }
+        }
         vertx.eventBus().consumer<String>("configChange") {
             val topics = getTopicsMap(vertx)
             val subscriptions = getSubscriptionsMap(vertx)
+            val config = ConfigFactory.load()
+            val dbPath = getDbOutputPath(config)
             val newConfig = Configuration(
                 1,
                 System.currentTimeMillis(),

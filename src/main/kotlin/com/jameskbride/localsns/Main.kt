@@ -26,9 +26,12 @@ class Main {
         }
 
         private fun start(vertx: Vertx) {
-            vertx.deployVerticle("com.jameskbride.localsns.verticles.DatabaseVerticle")
             vertx.deployVerticle("com.jameskbride.localsns.verticles.MainVerticle")
             val options = DeploymentOptions().setThreadingModel(ThreadingModel.WORKER)
+            vertx.deployVerticle("com.jameskbride.localsns.verticles.DatabaseVerticle", options)
+                .onComplete {
+                    vertx.eventBus().publish("loadConfig", null)
+                }
             vertx.deployVerticle("com.jameskbride.localsns.verticles.PublishVerticle", options)
         }
     }
