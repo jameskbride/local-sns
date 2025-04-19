@@ -77,7 +77,7 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
             when (message.messageStructure) {
                 "json" -> {
                     val messages = gson.fromJson(message.message, JsonObject::class.java)
-                    if (messages.get("default") == null) {
+                    if (!messages.has("default")) {
                         logAndReturnError(ctx, logger, "Attribute 'default' is required when MessageStructure is json.")
                         return@route
                     }
