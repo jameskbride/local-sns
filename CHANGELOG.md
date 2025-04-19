@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.0] - 2025-04-19
+### Added
+- `null` MessageBody filtering now works [#31](https://github.com/jameskbride/local-sns/pull/31)
+- 
+## Changed
+- Using Gson instead of vertx's default Jackson for serialization [#31](https://github.com/jameskbride/local-sns/pull/31)
+- Initialize the configuration database via eventbus [#31](https://github.com/jameskbride/local-sns/pull/31)
+- Executing publishing logic via `vertx.executeBlocking` to run in worker threads [#31](https://github.com/jameskbride/local-sns/pull/31)
+
+## Fixed
+- Boolean message filtering now only works with `MessageBody` subscription filters, per the SNS contract [#31](https://github.com/jameskbride/local-sns/pull/31)
+
+## Removed
+- Removed the `vertx-camel-bridge` dependency as it was unnecessary. [#31](https://github.com/jameskbride/local-sns/pull/31)
+
 ## [1.2.0] - 2025-03-25
 ## Added
 - Added support for `PublishBatch` [#29](https://github.com/jameskbride/local-sns/pull/29)
