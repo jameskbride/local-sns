@@ -105,14 +105,14 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     }
 
     //build Successful responses
-    val successfulResponse = batchEntries.values.map { message ->
+    val successfulResponse = batchEntries.values.joinToString("\n") { message ->
         """
             <member>
                 <MessageId>${UUID.randomUUID()}</MessageId>
                 <Id>${message.id}</Id>
             </member>
         """.trimIndent()
-    }.joinToString("\n")
+    }
 
     ctx.request().response()
         .putHeader("context-type", "text/xml")
