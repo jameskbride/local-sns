@@ -1,13 +1,12 @@
 package com.jameskbride.localsns.routes
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.jameskbride.localsns.getDbOutputPath
 import com.jameskbride.localsns.getDbPath
 import com.jameskbride.localsns.models.Configuration
 import com.jameskbride.localsns.toJsonConfig
 import com.typesafe.config.ConfigFactory
-import io.vertx.core.Vertx
-import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -17,7 +16,7 @@ import java.time.ZoneOffset
 val configRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
     val logger: Logger = LogManager.getLogger("configRoute")
     val config = ConfigFactory.load()
-    val vertx = Vertx.vertx()
+    val vertx = ctx.vertx()
     val dbPath = if (vertx.fileSystem().existsBlocking(getDbOutputPath(config))) {
         getDbOutputPath(config)
     } else {
@@ -38,10 +37,10 @@ val configRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
 }
 
 fun createNewConfig(): JsonObject {
-    val mapper = jacksonObjectMapper()
     val configuration = Configuration(
         version = 1,
         timestamp = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
     )
-    return JsonObject(mapper.writeValueAsString(configuration))
+    val gson = Gson()
+    return gson.fromJson(gson.toJson(configuration), JsonObject::class.java)
 }

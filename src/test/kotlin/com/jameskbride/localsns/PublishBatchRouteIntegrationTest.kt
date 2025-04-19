@@ -5,6 +5,7 @@ import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.MainVerticle
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
 import io.vertx.ext.web.Router
@@ -34,7 +35,15 @@ class PublishBatchRouteIntegrationTest: BaseTest() {
 
     @BeforeEach
     fun setup(vertx: Vertx, testContext: VertxTestContext) {
-        vertx.deployVerticle(MainVerticle(), testContext.succeeding { _ -> testContext.completeNow() })
+        Future.all(
+            listOf(vertx.deployVerticle(MainVerticle()))
+        ).onComplete {
+            if (it.succeeded()) {
+                testContext.completeNow()
+            } else {
+                testContext.failNow(it.cause())
+            }
+        }
         router.clear()
         deleteAllQueues()
     }

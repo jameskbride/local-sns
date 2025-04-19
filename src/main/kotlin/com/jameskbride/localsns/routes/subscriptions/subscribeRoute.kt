@@ -61,7 +61,16 @@ val subscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
-    val subscriptionEndpoint = buildSubscriptionEndpointData(protocol, endpoint)
+    val subscriptionEndpoint = try {
+        buildSubscriptionEndpointData(protocol, endpoint)
+    } catch (e: Exception) {
+        logAndReturnError(
+            ctx,
+            logger,
+            "Invalid Endpoint: $endpoint",
+        )
+        return@route
+    }
 
     val subscriptions = getSubscriptionsMap(vertx)!!
     val owner = getAwsAccountId(config = ConfigFactory.load())

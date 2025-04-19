@@ -40,7 +40,6 @@ application {
 dependencies {
   implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
   implementation("io.vertx:vertx-web:$vertxVersion")
-  implementation("io.vertx:vertx-camel-bridge:$vertxVersion")
   implementation("io.vertx:vertx-lang-kotlin:$vertxVersion")
   implementation("org.apache.camel:camel-core:$camelVersion")
   implementation("org.apache.camel:camel-file:$camelVersion")

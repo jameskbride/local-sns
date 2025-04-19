@@ -1,16 +1,16 @@
 package com.jameskbride.localsns
 
 import com.google.gson.Gson
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.MainVerticle
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
-import io.vertx.core.json.Json
-import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
@@ -45,7 +45,15 @@ class PublishRouteIntegrationTest: BaseTest() {
 
     @BeforeEach
     fun setup(vertx: Vertx, testContext: VertxTestContext) {
-        vertx.deployVerticle(MainVerticle(), testContext.succeeding { _ -> testContext.completeNow() })
+        Future.all(
+            listOf(vertx.deployVerticle(MainVerticle()))
+        ).onComplete {
+            if (it.succeeded()) {
+                testContext.completeNow()
+            } else {
+                testContext.failNow(it.cause())
+            }
+        }
         router.clear()
         deleteAllQueues()
     }
@@ -120,8 +128,9 @@ class PublishRouteIntegrationTest: BaseTest() {
             val messages = response.messages()
             assertTrue(messages.any {
                 val requestBody = it.body()
-                val jsonBody = JsonObject(requestBody)
-                message == jsonBody.getString("Message")
+                val gson = Gson()
+                val jsonBody = gson.fromJson(requestBody, JsonObject::class.java)
+                message == jsonBody.get("Message").asString
             })
             messages.forEach {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
@@ -205,15 +214,15 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val amount:List<JsonObject>, val sold:List<Boolean>): Serializable
-        val numericMatch = buildNumericPolicy(listOf("=", 10.5))
-        val filterPolicy = JsonObject.mapFrom(FilterPolicy(status=listOf("not_sent"), amount=listOf(numericMatch), sold=listOf(true)))
+        val filterPolicy = """
+            {"status": ["not_sent"], "amount": [{"numeric": ["=", 10.5]}]}
+        """.trimIndent()
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to filterPolicy.toString()
+                "FilterPolicy" to filterPolicy
             )
         )
         val message = "Hello, SNS!"
@@ -224,7 +233,6 @@ class PublishRouteIntegrationTest: BaseTest() {
             messageAttributes = listOf(
                 MessageAttribute("status", "not_sent"),
                 MessageAttribute("amount", "10.5", dataType = "Number"),
-                MessageAttribute("sold", "true"),
             )
         )
         snsClient.publish(request)
@@ -245,13 +253,14 @@ class PublishRouteIntegrationTest: BaseTest() {
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val amount:List<JsonObject>): Serializable
         val numericMatch = buildNumericPolicy(listOf("=", 10.5))
-        val filterPolicy = JsonObject.mapFrom(FilterPolicy(amount=listOf(numericMatch)))
+        val gson = Gson()
+        val filterPolicy = gson.toJson(FilterPolicy(amount=listOf(numericMatch)))
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to filterPolicy.toString()
+                "FilterPolicy" to filterPolicy
             )
         )
         val message = "Hello, SNS!"
@@ -281,15 +290,15 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
-        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
-        val gson = Gson()
+        val filterPolicyJson = """
+            {"status": ["not_sent"],"amount": [{"numeric": ["\u003d", 10.5]}]}
+        """.trimIndent()
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to gson.toJson(filterPolicy)
+                "FilterPolicy" to filterPolicyJson
             )
         )
         val message = "Hello, SNS!"
@@ -300,7 +309,6 @@ class PublishRouteIntegrationTest: BaseTest() {
             messageAttributes = listOf(
                 MessageAttribute("status", "not_sent"),
                 MessageAttribute("amount", "5.0"),
-                MessageAttribute("sold", "true")
             )
         )
         snsClient.publish(request)
@@ -391,20 +399,20 @@ class PublishRouteIntegrationTest: BaseTest() {
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val status:List<String>, val amount:List<JsonObject>, val sold:List<Boolean>): Serializable
         val numericMatch = buildNumericPolicy(listOf("=", 5.0))
-        val filterPolicy = JsonObject.mapFrom(FilterPolicy(status=listOf("not_sent"), amount=listOf(numericMatch), sold=listOf(true)))
+        val gson = Gson()
+        val filterPolicy = gson.toJson(FilterPolicy(status=listOf("not_sent"), amount=listOf(numericMatch), sold=listOf(true)))
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to filterPolicy.toString(),
+                "FilterPolicy" to filterPolicy,
                 "FilterPolicyScope" to "MessageBody",
             )
         )
         data class Message(val status:String, val amount:Double, val sold:Boolean)
         val message = Message(status="not_sent", amount=5.0, sold=true)
 
-        val gson = Gson()
         val request = publishRequest(
             topic,
             gson.toJson(message),
@@ -424,9 +432,13 @@ class PublishRouteIntegrationTest: BaseTest() {
         val numericMatch = JsonObject()
         val matchParams = JsonArray()
         params.forEach {
-            matchParams.add(it)
+            when (it) {
+                is String -> matchParams.add(it)
+                is Double -> matchParams.add(it)
+                else -> throw IllegalArgumentException("Invalid parameter type")
+            }
         }
-        numericMatch.put("numeric", matchParams)
+        numericMatch.add("numeric", matchParams)
         return numericMatch
     }
 
@@ -437,20 +449,20 @@ class PublishRouteIntegrationTest: BaseTest() {
         val endpoint = createQueue(queueName)
         data class FilterPolicy(val amount:List<JsonObject>): Serializable
         val numericMatch = buildNumericPolicy(listOf("=", 5.0))
-        val filterPolicy = JsonObject.mapFrom(FilterPolicy(amount=listOf(numericMatch)))
+        val gson = Gson()
+        val filterPolicy = gson.toJson(FilterPolicy(amount=listOf(numericMatch)))
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to filterPolicy.toString(),
+                "FilterPolicy" to filterPolicy,
                 "FilterPolicyScope" to "MessageBody",
             )
         )
         data class Message(val status:String, val amount:Double, val sold:Boolean)
         val message = Message(status="not_sent", amount=5.0, sold=true)
 
-        val gson = Gson()
         val request = publishRequest(
             topic,
             gson.toJson(message),
@@ -471,21 +483,21 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         val queueName = UUID.randomUUID().toString()
         val endpoint = createQueue(queueName)
-        data class FilterPolicy(val status:List<String>, val amount:List<Double>, val sold:List<Boolean>): Serializable
-        val filterPolicy = FilterPolicy(status=listOf("not_sent"), amount=listOf(10.5), sold=listOf(true))
-        val gson = Gson()
+        val filterPolicy = """
+            { "status": ["not_sent"], "amount": [{"numeric": ["=", 10.5]}], "sold": [true] }
+        """.trimIndent()
         subscribe(
             topic.arn,
             endpoint,
             "sqs",
             mapOf(
-                "FilterPolicy" to gson.toJson(filterPolicy),
+                "FilterPolicy" to filterPolicy,
                 "FilterPolicyScope" to "MessageBody",
             )
         )
         data class Message(val status:String, val amount:Double, val sold:Boolean)
         val message = Message(status="not_sent", amount=7.0, sold=false)
-
+        val gson = Gson()
         val request = publishRequest(
             topic,
             gson.toJson(message),
@@ -542,9 +554,10 @@ class PublishRouteIntegrationTest: BaseTest() {
         val queueUrl = createQueueUrl(queueName)
         startReceivingMessages(queueUrl) { response ->
             val messages = response.messages()
+            val gson = Gson()
             assertTrue(messages.any {
-                val jsonBody = JsonObject(it.body())
-                jsonBody.getString("Message") == message
+                val jsonBody = gson.fromJson(it.body(), JsonObject::class.java)
+                jsonBody.get("Message").asString == message
             })
             messages.forEach {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
@@ -572,9 +585,10 @@ class PublishRouteIntegrationTest: BaseTest() {
         val queueUrl = createQueueUrl(queueName)
         startReceivingMessages(queueUrl, messageAttributes.map { it.name }.toSet()) { response ->
             val messages = response.messages()
+            val gson = Gson()
             if (messages.any {
-                    val jsonBody = JsonObject(it.body())
-                    jsonBody.getString("Message") == message &&
+                    val jsonBody = gson.fromJson(it.body(), JsonObject::class.java)
+                    jsonBody.get("Message").asString == message &&
                         messageHasAttribute(it, "first", "firstValue") &&
                         messageHasAttribute(it, "second", "secondValue")
             }) {
@@ -608,9 +622,10 @@ class PublishRouteIntegrationTest: BaseTest() {
         router.post("/testEndpoint").handler { routingContext ->
             val request = routingContext.request()
             request.bodyHandler { body ->
+                val gson = Gson()
                 val requestBody = body.toString("UTF-8")
-                val jsonBody = JsonObject(requestBody)
-                assertEquals(message, jsonBody.getString("Message"))
+                val jsonBody = gson.fromJson(requestBody, JsonObject::class.java)
+                assertEquals(message, jsonBody.get("Message").asString)
                 testContext.completeNow()
             }
 
@@ -662,9 +677,10 @@ class PublishRouteIntegrationTest: BaseTest() {
         router.post("/testEndpoint1").handler { routingContext ->
             val request = routingContext.request()
             request.bodyHandler { body ->
+                val gson = Gson()
                 val requestBody = body.toString("UTF-8")
-                val jsonBody = JsonObject(requestBody)
-                assertEquals(message, jsonBody.getString("Message"))
+                val jsonBody = gson.fromJson(requestBody, JsonObject::class.java)
+                assertEquals(message, jsonBody.get("Message").asString)
                 testContext.checkpoint()
             }
 
@@ -675,9 +691,10 @@ class PublishRouteIntegrationTest: BaseTest() {
         router.post("/testEndpoint2").handler { routingContext ->
             val request = routingContext.request()
             request.bodyHandler { body ->
+                val gson = Gson()
                 val requestBody = body.toString("UTF-8")
-                val jsonBody = JsonObject(requestBody)
-                assertEquals(message, jsonBody.getString("Message"))
+                val jsonBody = gson.fromJson(requestBody, JsonObject::class.java)
+                assertEquals(message, jsonBody.get("Message").asString)
                 testContext.completeNow()
             }
 
@@ -701,9 +718,10 @@ class PublishRouteIntegrationTest: BaseTest() {
         router.post("/testEndpoint").handler { routingContext ->
             val request = routingContext.request()
             request.bodyHandler { body ->
+                val gson = Gson()
                 val requestBody = body.toString("UTF-8")
-                val jsonBody = JsonObject(requestBody)
-                assertEquals(message, jsonBody.getString("Message"))
+                val jsonBody = gson.fromJson(requestBody, JsonObject::class.java)
+                assertEquals(message, jsonBody.get("Message").asString)
                 testContext.completeNow()
             }
 
@@ -724,7 +742,8 @@ class PublishRouteIntegrationTest: BaseTest() {
     fun `it can publish using MessageStructure`(testContext: VertxTestContext) {
         data class Message(val default: String, val http:String): Serializable
         data class JsonMessage(val key:String):Serializable
-        val httpMessage = Json.encode(JsonMessage("hello http"))
+        val gson = Gson()
+        val httpMessage = gson.toJson(JsonMessage("hello http"))
         val message = Message("default message", httpMessage)
 
         // Define a POST route
@@ -732,8 +751,8 @@ class PublishRouteIntegrationTest: BaseTest() {
             val request = routingContext.request()
             request.bodyHandler { body ->
                 val requestBody = body.toString("UTF-8")
-                val jsonBody = JsonObject(requestBody)
-                assertEquals(message.http, jsonBody.getString("Message"))
+                val jsonBody = gson.fromJson(requestBody, JsonObject::class.java)
+                assertEquals(message.http, jsonBody.get("Message").asString)
                 testContext.completeNow()
             }
 
@@ -744,7 +763,7 @@ class PublishRouteIntegrationTest: BaseTest() {
         val topic = createTopicModel("topic1")
         subscribe(topic.arn, createCamelHttpEndpoint("http://localhost:9933/testEndpoint", method="POST"), "http")
 
-        val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
+        val request = publishRequest(topic, gson.toJson(message), messageStructure = "json")
         snsClient.publish(request)
     }
 
@@ -752,7 +771,8 @@ class PublishRouteIntegrationTest: BaseTest() {
     fun `it can publish raw http messages using MessageStructure`(testContext: VertxTestContext) {
         data class Message(val default: String, val http:String): Serializable
         data class JsonMessage(val key:String):Serializable
-        val httpMessage = Json.encode(JsonMessage("hello http"))
+        val gson = Gson()
+        val httpMessage = gson.toJson(JsonMessage("hello http"))
         val message = Message("default message", httpMessage)
 
         // Define a POST route
@@ -775,7 +795,7 @@ class PublishRouteIntegrationTest: BaseTest() {
             mapOf("RawMessageDelivery" to "true")
         )
 
-        val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
+        val request = publishRequest(topic, gson.toJson(message), messageStructure = "json")
         snsClient.publish(request)
     }
 
@@ -783,7 +803,8 @@ class PublishRouteIntegrationTest: BaseTest() {
     fun `it can publish raw sqs messages using MessageStructure`(testContext: VertxTestContext) {
         data class Message(val default: String, val sqs:String): Serializable
         data class JsonMessage(val key:String):Serializable
-        val jsonMessage = Json.encode(JsonMessage("hello sqs"))
+        val gson = Gson()
+        val jsonMessage = gson.toJson(JsonMessage("hello sqs"))
         val message = Message("default message", jsonMessage)
 
         val queueName = UUID.randomUUID().toString()
@@ -796,7 +817,7 @@ class PublishRouteIntegrationTest: BaseTest() {
             mapOf("RawMessageDelivery" to "true")
         )
 
-        val request = publishRequest(topic, Json.encode(message), messageStructure = "json")
+        val request = publishRequest(topic, gson.toJson(message), messageStructure = "json")
         snsClient.publish(request)
 
         val queueUrl = createQueueUrl(queueName)

@@ -1,6 +1,7 @@
 package com.jameskbride.localsns;
 
-import com.jameskbride.localsns.models.Configuration
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.jameskbride.localsns.verticles.MainVerticle
 import io.vertx.core.Vertx
 import io.vertx.junit5.VertxExtension
@@ -25,14 +26,14 @@ class ConfigRouteTest: BaseTest() {
         val response = getCurrentConfig()
 
         assertEquals(200, response.statusCode)
+        val gson = Gson()
         val text = response.text
-        val jsonConfig = io.vertx.core.json.JsonObject(text)
-        assertTrue(jsonConfig.containsKey("topics"))
-        assertTrue(jsonConfig.containsKey("subscriptions"))
-        assertTrue(jsonConfig.containsKey("timestamp"))
-        assertTrue(jsonConfig.containsKey("version"))
-
-        jsonConfig.mapTo(Configuration::class.java)
+        val jsonConfig = gson.fromJson(text, JsonObject::class.java)
+        assertTrue(jsonConfig.has("topics"))
+        assertTrue(jsonConfig.has("subscriptions"))
+        assertTrue(jsonConfig.has("timestamp"))
+        assertTrue(jsonConfig.has("version"))
+        gson.toJson(jsonConfig)
 
         testContext.completeNow()
     }

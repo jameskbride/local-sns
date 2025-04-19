@@ -1,5 +1,6 @@
 package com.jameskbride.localsns
 
+import com.google.gson.Gson
 import com.jameskbride.localsns.models.Configuration
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
@@ -8,8 +9,8 @@ import com.jameskbride.localsns.verticles.MainVerticle
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.CompositeFuture
+import io.vertx.core.Future
 import io.vertx.core.Vertx
-import io.vertx.core.json.JsonObject
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -30,10 +31,13 @@ class SubscribeRouteTest : BaseTest() {
             val mainFuture = vertx.deployVerticle(MainVerticle())
             val databaseFuture = vertx.deployVerticle(DatabaseVerticle())
             configureObjectMappers()
-            CompositeFuture.all(mainFuture, databaseFuture)
-                .onComplete {
+            Future.all (mainFuture, databaseFuture).onComplete {
+                if (it.succeeded()) {
                     testContext.completeNow()
+                } else {
+                    testContext.failNow(it.cause())
                 }
+            }
         }
     }
 
@@ -70,6 +74,17 @@ class SubscribeRouteTest : BaseTest() {
         val topic = "topic1"
         createTopic(topic)
         val response = subscribe(createValidArn("doesnotexist"), createCamelSqsEndpoint("queue1"), "sqs")
+        assertEquals(400, response.statusCode)
+
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it returns an error when the subscription endpoint is invalid`(testContext: VertxTestContext) {
+        val topic = "topic1"
+        val topicResponse = createTopic(topic)
+        val topicArn = getTopicArnFromResponse(topicResponse)
+        val response = subscribe(topicArn, "http://localhost:9324", "sqs")
         assertEquals(400, response.statusCode)
 
         testContext.completeNow()
@@ -159,10 +174,9 @@ class SubscribeRouteTest : BaseTest() {
         vertx.fileSystem()
             .readFile(getDbOutputPath(config))
             .onComplete { result ->
-                val configFile = result.result()
-                val jsonConfig = JsonObject(configFile)
-
-                val configuration = jsonConfig.mapTo(Configuration::class.java)
+                val configFile = result.result().toString()
+                val gson = Gson()
+                val configuration = gson.fromJson(configFile, Configuration::class.java)
                 assertEquals(configuration.version, 1)
                 assertTrue(configuration.topics.contains(topic))
                 val foundSubscription = configuration.subscriptions.find(subscriptionPredicate)

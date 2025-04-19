@@ -1,11 +1,17 @@
 package com.jameskbride.localsns.routes.topics
 
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.jameskbride.localsns.NOT_FOUND
 import com.jameskbride.localsns.getFormAttribute
 import com.jameskbride.localsns.getTopicsMap
 import com.jameskbride.localsns.logAndReturnError
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
+import com.jameskbride.localsns.topics.PublishRequest
+import com.jameskbride.localsns.topics.getTopicArn
+import com.jameskbride.localsns.topics.publishBasicMessageToTopic
+import com.jameskbride.localsns.topics.publishJsonStructure
 import io.vertx.ext.web.RoutingContext
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
@@ -57,28 +63,43 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
 
     val messageAttributes:Map<String, MessageAttribute> = MessageAttribute.parse(attributes)
     val camelContext = DefaultCamelContext()
-    val producerTemplate = camelContext.createProducerTemplate()
     camelContext.start()
+    val gson = Gson()
+    val publishRequest = PublishRequest(
+        message = message,
+        messageAttributes = messageAttributes,
+        topicArn = topicArn
+    )
 
     if (messageStructure != null) {
-        val success = when (messageStructure) {
+         when (messageStructure) {
             "json" -> {
-                publishJsonStructure(message, messageAttributes, topicArn, producerTemplate, ctx)
+                val messages = gson.fromJson(message, JsonObject::class.java)
+                if (!messages.has("default")) {
+                    logAndReturnError(ctx, logger, "Attribute 'default' is required when MessageStructure is json.")
+                    return@route
+                }
+                publishJsonStructure(
+                    publishRequest,
+                    camelContext.createProducerTemplate(),
+                    vertx
+                )
             }
             else -> {
-                publishBasicMessageToTopic(message, messageAttributes, topicArn, producerTemplate, ctx)
-                true
+                publishBasicMessageToTopic(
+                    publishRequest,
+                    camelContext.createProducerTemplate(),
+                    vertx,
+                )
             }
         }
-
-        if (!success) {
-            logAndReturnError(ctx, logger, "Message structure is not valid")
-            return@route
-        }
     } else {
-        publishBasicMessageToTopic(message, messageAttributes, topicArn, producerTemplate, ctx)
+        publishBasicMessageToTopic(
+            publishRequest,
+            camelContext.createProducerTemplate(),
+            vertx,
+        )
     }
-
 
     val messageId = UUID.randomUUID()
     ctx.request().response()
