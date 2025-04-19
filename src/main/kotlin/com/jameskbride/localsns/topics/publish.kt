@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import com.jameskbride.localsns.getSubscriptionsMap
 import com.jameskbride.localsns.models.*
 import com.jameskbride.localsns.models.SubscriptionAttribute.Companion.FILTER_POLICY
+import io.vertx.core.Future
 import io.vertx.core.Vertx
 import org.apache.camel.ProducerTemplate
 import org.apache.logging.log4j.LogManager
@@ -34,42 +35,64 @@ fun getTopicArn(topicArn: String?, targetArn: String?): String? {
 fun publishJsonStructure(
     publishRequest: PublishRequest,
     producerTemplate: ProducerTemplate,
-    vertx: Vertx
-): Boolean {
-    logger.info("Publishing message to topic with json structure {}", publishRequest.topicArn)
-    val subscriptions = getTopicSubscriptions(publishRequest.topicArn, vertx)
-    val gson = Gson()
-    try {
-        val messages = gson.fromJson(publishRequest.message, JsonObject::class.java)
-        subscriptions.map { subscription ->
-            val messageToPublish: String = if (messages.has(subscription.protocol)) {
-                messages[subscription.protocol].asString
-            } else {
-                messages["default"].asString
+    vertx: Vertx,
+) {
+    vertx.executeBlocking<Any>({ ->
+        try {
+            logger.info("Publishing message to topic with json structure {}", publishRequest.topicArn)
+            val subscriptions = getTopicSubscriptions(publishRequest.topicArn, vertx)
+            val gson = Gson()
+            val messages = gson.fromJson(publishRequest.message, JsonObject::class.java)
+            subscriptions.map { subscription ->
+                val messageToPublish: String = if (messages.has(subscription.protocol)) {
+                    messages[subscription.protocol].asString
+                } else {
+                    messages["default"].asString
+                }
+                logger.debug("Messages to publish: $messageToPublish")
+                publishToSubscription(
+                    subscription,
+                    messageToPublish,
+                    publishRequest.messageAttributes,
+                    producerTemplate
+                )
+                    ?.exceptionally { logger.error("Error publishing to subscription: ${subscription.arn}", it) }
             }
-            logger.debug("Messages to publish: $messageToPublish")
-            publishToSubscription(subscription, messageToPublish, publishRequest.messageAttributes, producerTemplate)
-                ?.exceptionally { logger.error("Error publishing to subscription: ${subscription.arn}", it) }
+            Future.succeededFuture<Any>()
+        } catch (ex: Exception) {
+            logger.error(ex.message, ex)
+            Future.failedFuture(ex)
         }
-    } catch (ex: Exception) {
-        logger.error(ex.message, ex)
-        return false
-    }
-
-    return true
+    }, {
+        if (it.failed()) {
+            logger.error("Error publishing message to topic: ${publishRequest.topicArn}", it.cause())
+        }
+    })
 }
 
 fun publishBasicMessageToTopic(
     publishRequest: PublishRequest,
     producerTemplate: ProducerTemplate,
-    vertx: Vertx
+    vertx: Vertx,
 ) {
-    val subscriptions = getTopicSubscriptions(publishRequest.topicArn, vertx)
-    logger.info("Publishing to topic: ${publishRequest.topicArn}")
-    subscriptions.forEach { subscription ->
-        publishToSubscription(subscription, publishRequest.message, publishRequest.messageAttributes, producerTemplate)
-            ?.exceptionally { logger.error("An error occurred when publishing to: ${subscription.endpoint}", it) }
-    }
+    vertx.executeBlocking({ ->
+        try {
+            val subscriptions = getTopicSubscriptions(publishRequest.topicArn, vertx)
+            logger.info("Publishing to topic: ${publishRequest.topicArn}")
+            subscriptions.map { subscription ->
+                publishToSubscription(subscription, publishRequest.message, publishRequest.messageAttributes, producerTemplate)
+                    ?.exceptionally { logger.error("An error occurred when publishing to: ${subscription.endpoint}", it) }
+            }
+            Future.succeededFuture<Any>()
+        } catch (ex : Exception) {
+            logger.error("Error publishing message to topic: ${publishRequest.topicArn}", ex)
+            Future.failedFuture(ex)
+        }
+    }, { result ->
+        if (result.failed()) {
+            logger.error("Error publishing message to topic: ${publishRequest.topicArn}", result.cause())
+        }
+    })
 }
 
 private fun publishToSubscription(

@@ -4,6 +4,8 @@ import com.typesafe.config.ConfigFactory
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.ThreadingModel
 import io.vertx.core.Vertx
+import io.vertx.core.VertxOptions
+import io.vertx.core.eventbus.EventBusOptions
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
@@ -32,7 +34,6 @@ class Main {
                 .onComplete {
                     vertx.eventBus().publish("loadConfig", null)
                 }
-            vertx.deployVerticle("com.jameskbride.localsns.verticles.PublishVerticle", options)
         }
     }
 }

@@ -3,7 +3,6 @@ package com.jameskbride.localsns
 import com.jameskbride.localsns.models.PublishBatchRequestEntry
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.MainVerticle
-import com.jameskbride.localsns.verticles.PublishVerticle
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.Future
@@ -37,8 +36,7 @@ class PublishBatchRouteIntegrationTest: BaseTest() {
     @BeforeEach
     fun setup(vertx: Vertx, testContext: VertxTestContext) {
         Future.all(
-            vertx.deployVerticle(MainVerticle()),
-            vertx.deployVerticle(PublishVerticle())
+            listOf(vertx.deployVerticle(MainVerticle()))
         ).onComplete {
             if (it.succeeded()) {
                 testContext.completeNow()

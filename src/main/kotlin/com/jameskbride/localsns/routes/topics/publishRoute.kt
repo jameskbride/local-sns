@@ -10,6 +10,8 @@ import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.topics.PublishRequest
 import com.jameskbride.localsns.topics.getTopicArn
+import com.jameskbride.localsns.topics.publishBasicMessageToTopic
+import com.jameskbride.localsns.topics.publishJsonStructure
 import io.vertx.ext.web.RoutingContext
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
@@ -77,14 +79,26 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
                     logAndReturnError(ctx, logger, "Attribute 'default' is required when MessageStructure is json.")
                     return@route
                 }
-                vertx.eventBus().publish("publishJsonStructure", gson.toJson(publishRequest))
+                publishJsonStructure(
+                    publishRequest,
+                    camelContext.createProducerTemplate(),
+                    vertx
+                )
             }
             else -> {
-                vertx.eventBus().publish("publishBasicMessage", gson.toJson(publishRequest))
+                publishBasicMessageToTopic(
+                    publishRequest,
+                    camelContext.createProducerTemplate(),
+                    vertx,
+                )
             }
         }
     } else {
-        vertx.eventBus().publish("publishBasicMessage", gson.toJson(publishRequest))
+        publishBasicMessageToTopic(
+            publishRequest,
+            camelContext.createProducerTemplate(),
+            vertx,
+        )
     }
 
     val messageId = UUID.randomUUID()

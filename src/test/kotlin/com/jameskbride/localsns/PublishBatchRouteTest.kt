@@ -1,7 +1,6 @@
 package com.jameskbride.localsns
 
 import com.jameskbride.localsns.verticles.MainVerticle
-import com.jameskbride.localsns.verticles.PublishVerticle
 import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.junit5.VertxExtension
@@ -18,8 +17,7 @@ class PublishBatchRouteTest: BaseTest() {
     @BeforeEach
     fun setup(vertx: Vertx, testContext: VertxTestContext) {
         Future.all(
-            vertx.deployVerticle(MainVerticle()),
-            vertx.deployVerticle(PublishVerticle())
+            listOf(vertx.deployVerticle(MainVerticle()))
         ).onComplete {
             if (it.succeeded()) {
                 testContext.completeNow()
