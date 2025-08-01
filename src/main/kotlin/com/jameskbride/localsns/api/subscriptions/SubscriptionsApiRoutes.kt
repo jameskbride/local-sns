@@ -38,7 +38,6 @@ data class SubscriptionResponse(
 
 data class ErrorResponse(val error: String, val message: String)
 
-// GET /api/subscriptions - List all subscriptions
 val listSubscriptionsApiRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
     try {
         val vertx = ctx.vertx()
@@ -128,7 +127,6 @@ val createSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
             return@route
         }
 
-        // Validate required fields
         if (request.topicArn.isBlank() || request.protocol.isBlank() || request.endpoint.isBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "topicArn, protocol, and endpoint are required", 400)
             return@route
@@ -147,7 +145,6 @@ val createSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
             return@route
         }
 
-        // Validate RawMessageDelivery attribute if present
         if (request.attributes.containsKey("RawMessageDelivery") && 
             !listOf("true", "false").contains(request.attributes["RawMessageDelivery"])) {
             sendJsonError(
@@ -159,7 +156,6 @@ val createSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
             return@route
         }
 
-        // Build subscription endpoint (handle SQS URL conversion)
         val subscriptionEndpoint = try {
             buildSubscriptionEndpointData(request.protocol, request.endpoint)
         } catch (e: Exception) {
@@ -204,7 +200,6 @@ val createSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
     }
 }
 
-// GET /api/subscriptions/:arn - Get a specific subscription by ARN
 val getSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
         val subscriptionArn = ctx.pathParam("arn")
@@ -249,7 +244,6 @@ val getSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingCont
     }
 }
 
-// PUT /api/subscriptions/:arn - Update subscription attributes
 val updateSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
         val subscriptionArn = ctx.pathParam("arn")
@@ -276,7 +270,6 @@ val updateSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
             return@route
         }
 
-        // Validate RawMessageDelivery attribute if present
         if (request.attributes.containsKey("RawMessageDelivery") && 
             !listOf("true", "false").contains(request.attributes["RawMessageDelivery"])) {
             sendJsonError(
@@ -300,14 +293,12 @@ val updateSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
             return@route
         }
 
-        // Create updated subscription with new attributes
         val updatedSubscription = subscription.copy(
             subscriptionAttributes = subscription.subscriptionAttributes + request.attributes
         )
 
         logger.info("Updating subscription via API: $subscription -> $updatedSubscription")
         
-        // Update the subscriptions map
         val topicSubscriptions = subscriptionsMap.getOrDefault(subscription.topicArn, listOf())
         val updatedSubscriptions = topicSubscriptions.filter { it.arn != subscriptionArn } + updatedSubscription
         subscriptionsMap[subscription.topicArn] = updatedSubscriptions
@@ -332,7 +323,6 @@ val updateSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
     }
 }
 
-// DELETE /api/subscriptions/:arn - Delete a subscription
 val deleteSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
         val subscriptionArn = ctx.pathParam("arn")
@@ -360,7 +350,6 @@ val deleteSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
 
         logger.info("Deleting subscription via API: $subscription")
         
-        // Remove the subscription from the topic's subscription list
         val topicSubscriptions = subscriptionsMap.getOrDefault(subscription.topicArn, listOf())
         val updatedSubscriptions = topicSubscriptions.filter { it.arn != subscriptionArn }
         subscriptionsMap[subscription.topicArn] = updatedSubscriptions
@@ -375,7 +364,6 @@ val deleteSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
     }
 }
 
-// Helper function to build subscription endpoint (reused from existing subscribe route)
 private fun buildSubscriptionEndpointData(protocol: String, endpoint: String): String {
     return if (protocol == "sqs" && (endpoint.startsWith("http") || endpoint.startsWith("https"))) {
         val url = URI(endpoint)

@@ -54,7 +54,6 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             return@lambda
         }
 
-        // Get topicArn from path parameter or request body
         val pathTopicArn = ctx.pathParam("topicArn")
         val topicArn = getTopicArn(
             pathTopicArn ?: request.topicArn,
@@ -69,7 +68,6 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             return@lambda
         }
 
-        // Validate topic ARN format
         if (!Pattern.matches(Topic.arnPattern, topicArn)) {
             ctx.response()
                 .setStatusCode(400)
@@ -78,7 +76,6 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             return@lambda
         }
 
-        // Check if topic exists
         val topicsMap = getTopicsMap(ctx.vertx())
         if (topicsMap == null || !topicsMap.contains(topicArn)) {
             ctx.response()
@@ -88,7 +85,6 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             return@lambda
         }
 
-        // Validate message structure
         if (request.messageStructure != null && request.messageStructure != "json") {
             ctx.response()
                 .setStatusCode(400)
@@ -97,7 +93,6 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             return@lambda
         }
 
-        // Validate message content
         if (request.message.isBlank()) {
             ctx.response()
                 .setStatusCode(400)
@@ -114,7 +109,6 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             topicArn = topicArn
         )
 
-        // Validate JSON structure if specified
         if (request.messageStructure == "json") {
             try {
                 val messages = gson.fromJson(request.message, JsonObject::class.java)
@@ -134,7 +128,6 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             }
         }
 
-        // Create Camel context and publish
         val camelContext = DefaultCamelContext()
         camelContext.start()
 
@@ -152,7 +145,6 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             )
         }
 
-        // Generate message ID and return response
         val messageId = UUID.randomUUID().toString()
         val response = PublishApiResponse(messageId, topicArn)
 

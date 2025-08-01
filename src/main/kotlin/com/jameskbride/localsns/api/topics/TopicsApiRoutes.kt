@@ -19,7 +19,6 @@ data class UpdateTopicRequest(val name: String)
 data class TopicResponse(val arn: String, val name: String)
 data class ErrorResponse(val error: String, val message: String)
 
-// GET /api/topics - List all topics
 val listTopicsApiRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
     try {
         val vertx = ctx.vertx()
@@ -68,7 +67,6 @@ val createTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
         val topics = getTopicsMap(vertx)!!
         val subscriptions = getSubscriptionsMap(vertx)!!
         
-        // Check if topic already exists
         val existingTopic = topics.values.find { it.name == request.name }
         if (existingTopic != null) {
             val response = TopicResponse(arn = existingTopic.arn, name = existingTopic.name)
@@ -181,7 +179,6 @@ val updateTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
             return@route
         }
 
-        // Create a new topic with updated name but same ARN
         val config = ConfigFactory.load()
         val region = getAwsRegion(config)
         val accountId = getAwsAccountId(config)
@@ -190,11 +187,9 @@ val updateTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
 
         logger.info("Updating topic via API: $existingTopic -> $updatedTopic")
         
-        // Remove old topic and add updated one
         topics.remove(topicArn)
         topics[updatedTopic.arn] = updatedTopic
         
-        // Update subscriptions map
         val topicSubscriptions = subscriptions.remove(topicArn) ?: listOf()
         subscriptions[updatedTopic.arn] = topicSubscriptions
         
@@ -211,7 +206,6 @@ val updateTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
     }
 }
 
-// DELETE /api/topics/:arn - Delete a topic
 val deleteTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
         val topicArn = ctx.pathParam("arn")
