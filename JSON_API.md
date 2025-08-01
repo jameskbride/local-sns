@@ -1,7 +1,4 @@
 # Local SNS JSON REST API
-
-This document describes the new JSON REST API endpoints for managing Topics, Subscriptions, and Configuration in local-sns.
-
 ## Configuration API
 
 ### Get Configuration
@@ -307,27 +304,3 @@ The `"default"` key is required when using JSON message structure.
   "dataType": "String"
 }
 ```
-
-## Features
-
-- **JSON Request/Response**: All endpoints use JSON format
-- **Proper HTTP Status Codes**: 200, 201, 204, 400, 404, 500
-- **Input Validation**: Validates topic names, ARNs, and subscription attributes
-- **Error Handling**: Comprehensive error responses
-- **Integration**: Updates existing Vert.x shared data maps
-- **SQS Endpoint Conversion**: Automatically converts SQS HTTP URLs to Camel format
-- **Attribute Validation**: Validates subscription attributes like RawMessageDelivery
-- **Message Publishing**: Full support for publishing messages with attributes
-- **JSON Message Structure**: Support for protocol-specific message formatting
-- **Flexible Publishing**: Both topic-specific and general publish endpoints
-- **Configuration Management**: Full CRUD operations for configuration including backup creation
-
-## Compatibility
-
-The JSON API runs alongside the existing AWS SNS XML API. Both APIs:
-- Share the same underlying data storage (topics and subscriptions)
-- Use the same message publishing engine
-- Support the same protocols and features
-- Can be used interchangeably
-
-The JSON API provides a more modern, developer-friendly interface while maintaining full compatibility with the existing AWS SNS XML API.
