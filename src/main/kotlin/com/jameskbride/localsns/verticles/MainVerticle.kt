@@ -1,5 +1,6 @@
 package com.jameskbride.localsns.verticles
 
+import com.jameskbride.localsns.api.subscriptions.*
 import com.jameskbride.localsns.api.topics.*
 import com.jameskbride.localsns.getHttpInterface
 import com.jameskbride.localsns.getPort
@@ -35,6 +36,14 @@ class MainVerticle : AbstractVerticle() {
     router.get("/api/topics/:arn").handler(getTopicApiRoute)
     router.put("/api/topics/:arn").handler(updateTopicApiRoute)
     router.delete("/api/topics/:arn").handler(deleteTopicApiRoute)
+    
+    // Subscriptions API routes
+    router.get("/api/subscriptions").handler(listSubscriptionsApiRoute)
+    router.get("/api/topics/:topicArn/subscriptions").handler(listSubscriptionsByTopicApiRoute)
+    router.post("/api/subscriptions").handler(createSubscriptionApiRoute)
+    router.get("/api/subscriptions/:arn").handler(getSubscriptionApiRoute)
+    router.put("/api/subscriptions/:arn").handler(updateSubscriptionApiRoute)
+    router.delete("/api/subscriptions/:arn").handler(deleteSubscriptionApiRoute)
 
     val config = ConfigFactory.load()
     val httpInterface = getHttpInterface(config)
