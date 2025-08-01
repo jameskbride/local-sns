@@ -41,12 +41,10 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it can create a subscription via JSON API`(testContext: VertxTestContext) {
-        // First create a topic
         val topicRequest = CreateTopicRequest("test-topic")
         val topicResponse = createTopicApi(topicRequest)
         val topic = gson.fromJson(topicResponse.text, TopicResponse::class.java)
         
-        // Then create a subscription
         val subscriptionRequest = CreateSubscriptionRequest(
             topicArn = topic.arn,
             protocol = "http",
@@ -68,12 +66,10 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it can create a subscription with attributes via JSON API`(testContext: VertxTestContext) {
-        // First create a topic
         val topicRequest = CreateTopicRequest("test-topic-attrs")
         val topicResponse = createTopicApi(topicRequest)
         val topic = gson.fromJson(topicResponse.text, TopicResponse::class.java)
         
-        // Then create a subscription with attributes
         val subscriptionRequest = CreateSubscriptionRequest(
             topicArn = topic.arn,
             protocol = "http",
@@ -131,7 +127,6 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it validates RawMessageDelivery attribute when creating subscription via JSON API`(testContext: VertxTestContext) {
-        // First create a topic
         val topicRequest = CreateTopicRequest("test-topic-validation")
         val topicResponse = createTopicApi(topicRequest)
         val topic = gson.fromJson(topicResponse.text, TopicResponse::class.java)
@@ -154,10 +149,8 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it can get a specific subscription via JSON API`(testContext: VertxTestContext) {
-        // Create topic and subscription
         val (topic, subscription) = createTopicAndSubscription()
         
-        // Get the subscription
         val response = getSubscriptionApi(subscription.arn)
         
         assertEquals(200, response.statusCode)
@@ -188,10 +181,8 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it can update subscription attributes via JSON API`(testContext: VertxTestContext) {
-        // Create topic and subscription
         val (topic, subscription) = createTopicAndSubscription()
         
-        // Update the subscription
         val updateRequest = UpdateSubscriptionRequest(
             attributes = mapOf(
                 "RawMessageDelivery" to "true",
@@ -212,8 +203,7 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it validates RawMessageDelivery when updating subscription via JSON API`(testContext: VertxTestContext) {
-        // Create topic and subscription
-        val (topic, subscription) = createTopicAndSubscription()
+        val (_, subscription) = createTopicAndSubscription()
         
         val updateRequest = UpdateSubscriptionRequest(
             attributes = mapOf("RawMessageDelivery" to "invalid-value")
@@ -245,15 +235,12 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it can delete a subscription via JSON API`(testContext: VertxTestContext) {
-        // Create topic and subscription
         val (topic, subscription) = createTopicAndSubscription()
         
-        // Delete the subscription
         val response = deleteSubscriptionApi(subscription.arn)
         
         assertEquals(204, response.statusCode)
         
-        // Verify it's gone
         val getResponse = getSubscriptionApi(subscription.arn)
         assertEquals(404, getResponse.statusCode)
         
@@ -274,12 +261,10 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it can list subscriptions by topic via JSON API`(testContext: VertxTestContext) {
-        // Create a topic
         val topicRequest = CreateTopicRequest("test-topic-list")
         val topicResponse = createTopicApi(topicRequest)
         val topic = gson.fromJson(topicResponse.text, TopicResponse::class.java)
         
-        // Create multiple subscriptions for the topic
         val sub1Request = CreateSubscriptionRequest(
             topicArn = topic.arn,
             protocol = "http",
@@ -296,7 +281,6 @@ class SubscriptionsApiTest : BaseTest() {
         val sub1 = gson.fromJson(sub1Response.text, SubscriptionResponse::class.java)
         val sub2 = gson.fromJson(sub2Response.text, SubscriptionResponse::class.java)
         
-        // List subscriptions for the topic
         val response = getSubscriptionsByTopicApi(topic.arn)
         
         assertEquals(200, response.statusCode)
@@ -312,11 +296,9 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it shows created subscriptions in global list via JSON API`(testContext: VertxTestContext) {
-        // Create multiple topics and subscriptions
         val (topic1, sub1) = createTopicAndSubscription("topic1")
         val (topic2, sub2) = createTopicAndSubscription("topic2")
         
-        // List all subscriptions
         val response = getSubscriptionsApi()
         assertEquals(200, response.statusCode)
         
@@ -330,12 +312,10 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it handles SQS endpoint conversion for subscriptions via JSON API`(testContext: VertxTestContext) {
-        // Create topic
         val topicRequest = CreateTopicRequest("test-topic-sqs")
         val topicResponse = createTopicApi(topicRequest)
         val topic = gson.fromJson(topicResponse.text, TopicResponse::class.java)
         
-        // Create SQS subscription with HTTP URL
         val subscriptionRequest = CreateSubscriptionRequest(
             topicArn = topic.arn,
             protocol = "sqs",
@@ -346,7 +326,6 @@ class SubscriptionsApiTest : BaseTest() {
         assertEquals(201, response.statusCode)
         val subscription = gson.fromJson(response.text, SubscriptionResponse::class.java)
         
-        // Verify the endpoint was converted to Camel format
         assertTrue(subscription.endpoint!!.startsWith("aws2-sqs://my-queue"))
         assertTrue(subscription.endpoint!!.contains("queueOwnerAWSAccountId=123456789012"))
         
@@ -355,12 +334,10 @@ class SubscriptionsApiTest : BaseTest() {
 
     // Helper methods
     private fun createTopicAndSubscription(topicName: String = "test-topic"): Pair<TopicResponse, SubscriptionResponse> {
-        // Create topic
         val topicRequest = CreateTopicRequest(topicName)
         val topicResponse = createTopicApi(topicRequest)
         val topic = gson.fromJson(topicResponse.text, TopicResponse::class.java)
         
-        // Create subscription
         val subscriptionRequest = CreateSubscriptionRequest(
             topicArn = topic.arn,
             protocol = "http",
@@ -372,7 +349,6 @@ class SubscriptionsApiTest : BaseTest() {
         return Pair(topic, subscription)
     }
 
-    // API call helper methods
     private fun getSubscriptionsApi(): Response {
         return khttp.get("${getBaseUrl()}/api/subscriptions")
     }

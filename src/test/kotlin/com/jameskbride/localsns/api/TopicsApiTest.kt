@@ -106,12 +106,10 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it can get a specific topic via JSON API`(testContext: VertxTestContext) {
-        // First create a topic
         val request = CreateTopicRequest("get-topic-test")
         val createResponse = createTopicApi(request)
         val createdTopic = gson.fromJson(createResponse.text, TopicResponse::class.java)
         
-        // Then get it by ARN
         val response = getTopicApi(createdTopic.arn)
         
         assertEquals(200, response.statusCode)
@@ -140,7 +138,6 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it can update a topic via JSON API`(testContext: VertxTestContext) {
-        // First create a topic
         val createRequest = CreateTopicRequest("update-topic-test")
         val createResponse = createTopicApi(createRequest)
         val createdTopic = gson.fromJson(createResponse.text, TopicResponse::class.java)
@@ -177,17 +174,14 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it can delete a topic via JSON API`(testContext: VertxTestContext) {
-        // First create a topic
         val createRequest = CreateTopicRequest("delete-topic-test")
         val createResponse = createTopicApi(createRequest)
         val createdTopic = gson.fromJson(createResponse.text, TopicResponse::class.java)
         
-        // Then delete it
         val response = deleteTopicApi(createdTopic.arn)
         
         assertEquals(204, response.statusCode)
         
-        // Verify it's gone
         val getResponse = getTopicApi(createdTopic.arn)
         assertEquals(404, getResponse.statusCode)
         
@@ -210,11 +204,9 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it shows created topics in list via JSON API`(testContext: VertxTestContext) {
-        // Create a few topics
         val topic1 = gson.fromJson(createTopicApi(CreateTopicRequest("list-topic-1")).text, TopicResponse::class.java)
         val topic2 = gson.fromJson(createTopicApi(CreateTopicRequest("list-topic-2")).text, TopicResponse::class.java)
         
-        // List topics
         val response = getTopicsApi()
         assertEquals(200, response.statusCode)
         
@@ -226,7 +218,6 @@ class TopicsApiTest : BaseTest() {
         testContext.completeNow()
     }
 
-    // Helper methods for API calls
     private fun getTopicsApi(): Response {
         return khttp.get("${getBaseUrl()}/api/topics")
     }

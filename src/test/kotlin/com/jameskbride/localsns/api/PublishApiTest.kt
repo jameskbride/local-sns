@@ -54,14 +54,12 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it can publish a basic message to a topic via path parameter`(testContext: VertxTestContext) {
-        // First create a topic
         val topicResponse = createTopicApi("test-topic")
         Assertions.assertEquals(201, topicResponse.statusCode)
         
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        // Now publish a message
         val publishResponse = publishMessageApi(topicArn, "Hello, SNS!")
         
         Assertions.assertEquals(200, publishResponse.statusCode)
@@ -76,14 +74,12 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it can publish a basic message via general publish endpoint`(testContext: VertxTestContext) {
-        // First create a topic
         val topicResponse = createTopicApi("test-topic-2")
         Assertions.assertEquals(201, topicResponse.statusCode)
         
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        // Now publish a message
         val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = "Hello, SNS via general endpoint!")
         
         Assertions.assertEquals(200, publishResponse.statusCode)
@@ -98,14 +94,12 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it can publish a message with message attributes`(testContext: VertxTestContext) {
-        // First create a topic
         val topicResponse = createTopicApi("test-topic-attrs")
         Assertions.assertEquals(201, topicResponse.statusCode)
         
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        // Now publish a message with attributes
         val messageAttributes = mapOf(
             "attr1" to MessageAttribute("attr1", "value1", "String"),
             "attr2" to MessageAttribute("attr2", "value2", "String")
@@ -125,14 +119,12 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it can publish a JSON structured message`(testContext: VertxTestContext) {
-        // First create a topic
         val topicResponse = createTopicApi("test-topic-json")
         Assertions.assertEquals(201, topicResponse.statusCode)
         
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        // Now publish a JSON structured message
         val jsonMessage = mapOf(
             "default" to "Default message",
             "sqs" to "SQS specific message",
@@ -153,14 +145,12 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it can publish using targetArn instead of topicArn`(testContext: VertxTestContext) {
-        // First create a topic
         val topicResponse = createTopicApi("test-topic-target")
         Assertions.assertEquals(201, topicResponse.statusCode)
         
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        // Now publish using targetArn
         val publishResponse = publishMessageGeneralApi(targetArn = topicArn, message = "Hello with targetArn!")
         
         Assertions.assertEquals(200, publishResponse.statusCode)
@@ -242,14 +232,12 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it returns 400 when message is empty`(testContext: VertxTestContext) {
-        // First create a topic
         val topicResponse = createTopicApi("test-topic-empty-msg")
         Assertions.assertEquals(201, topicResponse.statusCode)
         
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        // Now try to publish empty message
         val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = "")
         
         Assertions.assertEquals(400, publishResponse.statusCode)
@@ -263,14 +251,12 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it returns 400 when messageStructure is invalid`(testContext: VertxTestContext) {
-        // First create a topic
         val topicResponse = createTopicApi("test-topic-invalid-structure")
         Assertions.assertEquals(201, topicResponse.statusCode)
         
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        // Now try invalid messageStructure
         val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = "Hello, SNS!", messageStructure = "xml")
         
         Assertions.assertEquals(400, publishResponse.statusCode)
@@ -284,14 +270,12 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it returns 400 when JSON structure is missing default attribute`(testContext: VertxTestContext) {
-        // First create a topic
         val topicResponse = createTopicApi("test-topic-no-default")
         Assertions.assertEquals(201, topicResponse.statusCode)
         
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        // JSON message without 'default' key
         val jsonMessage = mapOf(
             "sqs" to "SQS specific message",
             "http" to "HTTP specific message"
@@ -310,7 +294,6 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it returns 400 when message is invalid JSON but messageStructure is json`(testContext: VertxTestContext) {
-        // First create a topic
         val topicResponse = createTopicApi("test-topic-invalid-json")
         Assertions.assertEquals(201, topicResponse.statusCode)
         
