@@ -1,5 +1,6 @@
 package com.jameskbride.localsns.verticles
 
+import com.jameskbride.localsns.api.topics.*
 import com.jameskbride.localsns.getHttpInterface
 import com.jameskbride.localsns.getPort
 import com.jameskbride.localsns.routes.configRoute
@@ -22,9 +23,18 @@ class MainVerticle : AbstractVerticle() {
   override fun start(startPromise: Promise<Void>) {
     val router = Router.router(vertx)
     router.route().handler(BodyHandler.create())
+    
+    // AWS SNS compatible routes (XML)
     router.route("/").handler(getRoute)
     router.route("/health").handler(healthRoute)
     router.route("/config").handler(configRoute)
+    
+    // JSON REST API routes
+    router.get("/api/topics").handler(listTopicsApiRoute)
+    router.post("/api/topics").handler(createTopicApiRoute)
+    router.get("/api/topics/:arn").handler(getTopicApiRoute)
+    router.put("/api/topics/:arn").handler(updateTopicApiRoute)
+    router.delete("/api/topics/:arn").handler(deleteTopicApiRoute)
 
     val config = ConfigFactory.load()
     val httpInterface = getHttpInterface(config)
