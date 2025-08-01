@@ -1,5 +1,6 @@
 package com.jameskbride.localsns.verticles
 
+import com.jameskbride.localsns.api.config.*
 import com.jameskbride.localsns.api.publishMessageApiRoute
 import com.jameskbride.localsns.api.subscriptions.*
 import com.jameskbride.localsns.api.topics.*
@@ -30,6 +31,12 @@ class MainVerticle : AbstractVerticle() {
     router.route("/").handler(getRoute)
     router.route("/health").handler(healthRoute)
     router.route("/config").handler(configRoute)
+    
+    // Configuration API routes
+    router.get("/api/config").handler(getConfigurationApiRoute)
+    router.put("/api/config").handler(updateConfigurationApiRoute)
+    router.delete("/api/config").handler(resetConfigurationApiRoute)
+    router.post("/api/config/backup").handler(createConfigurationBackupApiRoute)
     
     // JSON REST API routes
     router.get("/api/topics").handler(listTopicsApiRoute)

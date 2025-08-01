@@ -1,6 +1,75 @@
 # Local SNS JSON REST API
 
-This document describes the new JSON REST API endpoints for managing Topics and Subscriptions in local-sns.
+This document describes the new JSON REST API endpoints for managing Topics, Subscriptions, and Configuration in local-sns.
+
+## Configuration API
+
+### Get Configuration
+- **GET** `/api/config`
+- **Response**: Complete configuration object
+```json
+{
+  "version": 1,
+  "timestamp": 1640995200000,
+  "topics": [
+    {
+      "arn": "arn:aws:sns:us-east-1:123456789012:my-topic",
+      "name": "my-topic"
+    }
+  ],
+  "subscriptions": [
+    {
+      "topicArn": "arn:aws:sns:us-east-1:123456789012:my-topic",
+      "arn": "arn:aws:sns:us-east-1:123456789012:subscription-id",
+      "owner": "123456789012",
+      "protocol": "http",
+      "endpoint": "http://example.com/webhook",
+      "subscriptionAttributes": {
+        "RawMessageDelivery": "true"
+      }
+    }
+  ]
+}
+```
+
+### Update Configuration
+- **PUT** `/api/config`
+- **Request Body**: Partial or complete configuration update
+```json
+{
+  "topics": [
+    {
+      "arn": "arn:aws:sns:us-east-1:123456789012:new-topic",
+      "name": "new-topic"
+    }
+  ],
+  "subscriptions": [
+    {
+      "topicArn": "arn:aws:sns:us-east-1:123456789012:new-topic",
+      "arn": "arn:aws:sns:us-east-1:123456789012:new-subscription",
+      "owner": "123456789012",
+      "protocol": "sqs",
+      "endpoint": "http://localhost:9324/queue/my-queue"
+    }
+  ]
+}
+```
+- **Response**: Updated configuration object
+
+### Reset Configuration
+- **DELETE** `/api/config`
+- **Response**: 204 No Content (clears all topics and subscriptions)
+
+### Create Configuration Backup
+- **POST** `/api/config/backup`
+- **Response**: Backup information
+```json
+{
+  "message": "Backup created successfully",
+  "backupPath": "/path/to/db.json.backup.1640995200000",
+  "timestamp": 1640995200000
+}
+```
 
 ## Topics API
 
@@ -204,6 +273,41 @@ The `"default"` key is required when using JSON message structure.
 }
 ```
 
+### Configuration
+```json
+{
+  "version": 1,
+  "timestamp": 1640995200000,
+  "topics": [
+    {
+      "arn": "arn:aws:sns:us-east-1:123456789012:topic-name",
+      "name": "topic-name"
+    }
+  ],
+  "subscriptions": [
+    {
+      "topicArn": "arn:aws:sns:us-east-1:123456789012:topic-name",
+      "arn": "arn:aws:sns:us-east-1:123456789012:subscription-id",
+      "owner": "123456789012",
+      "protocol": "http",
+      "endpoint": "http://example.com/webhook",
+      "subscriptionAttributes": {
+        "key": "value"
+      }
+    }
+  ]
+}
+```
+
+### Message Attribute Object
+```json
+{
+  "name": "attribute-name",
+  "value": "attribute-value", 
+  "dataType": "String"
+}
+```
+
 ## Features
 
 - **JSON Request/Response**: All endpoints use JSON format
@@ -216,6 +320,7 @@ The `"default"` key is required when using JSON message structure.
 - **Message Publishing**: Full support for publishing messages with attributes
 - **JSON Message Structure**: Support for protocol-specific message formatting
 - **Flexible Publishing**: Both topic-specific and general publish endpoints
+- **Configuration Management**: Full CRUD operations for configuration including backup creation
 
 ## Compatibility
 
