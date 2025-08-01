@@ -133,6 +133,77 @@ Common error codes:
 - `NOT_FOUND` - Resource not found
 - `INTERNAL_ERROR` - Server error
 
+## Publishing API
+
+### Publish Message to Topic (by path)
+- **POST** `/api/topics/:topicArn/publish`
+- **Request Body**:
+```json
+{
+  "message": "Hello, SNS!",
+  "messageAttributes": {
+    "attr1": {
+      "name": "attr1",
+      "value": "value1",
+      "dataType": "String"
+    }
+  },
+  "messageStructure": "json"
+}
+```
+- **Response**: Publish result (200)
+```json
+{
+  "messageId": "uuid-string",
+  "topicArn": "arn:aws:sns:us-east-1:123456789012:my-topic"
+}
+```
+
+### Publish Message (general endpoint)
+- **POST** `/api/publish`
+- **Request Body**:
+```json
+{
+  "topicArn": "arn:aws:sns:us-east-1:123456789012:my-topic",
+  "message": "Hello, SNS!",
+  "messageAttributes": {
+    "attr1": {
+      "name": "attr1", 
+      "value": "value1",
+      "dataType": "String"
+    }
+  },
+  "messageStructure": "json"
+}
+```
+- **Alternative using targetArn**:
+```json
+{
+  "targetArn": "arn:aws:sns:us-east-1:123456789012:my-topic",
+  "message": "Hello, SNS!"
+}
+```
+- **Response**: Publish result (200)
+
+### JSON Message Structure
+When using `"messageStructure": "json"`, the message should be a JSON string containing protocol-specific messages:
+```json
+{
+  "message": "{\"default\": \"Default message\", \"sqs\": \"SQS specific message\", \"http\": \"HTTP specific message\"}",
+  "messageStructure": "json"
+}
+```
+The `"default"` key is required when using JSON message structure.
+
+### Message Attribute Object
+```json
+{
+  "name": "attribute-name",
+  "value": "attribute-value", 
+  "dataType": "String"
+}
+```
+
 ## Features
 
 - **JSON Request/Response**: All endpoints use JSON format
@@ -142,7 +213,16 @@ Common error codes:
 - **Integration**: Updates existing Vert.x shared data maps
 - **SQS Endpoint Conversion**: Automatically converts SQS HTTP URLs to Camel format
 - **Attribute Validation**: Validates subscription attributes like RawMessageDelivery
+- **Message Publishing**: Full support for publishing messages with attributes
+- **JSON Message Structure**: Support for protocol-specific message formatting
+- **Flexible Publishing**: Both topic-specific and general publish endpoints
 
 ## Compatibility
 
-The JSON API runs alongside the existing AWS SNS XML API. Both APIs share the same underlying data store and event bus for configuration changes.
+The JSON API runs alongside the existing AWS SNS XML API. Both APIs:
+- Share the same underlying data storage (topics and subscriptions)
+- Use the same message publishing engine
+- Support the same protocols and features
+- Can be used interchangeably
+
+The JSON API provides a more modern, developer-friendly interface while maintaining full compatibility with the existing AWS SNS XML API.

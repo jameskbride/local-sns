@@ -1,0 +1,173 @@
+package com.jameskbride.localsns.api
+
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.JsonSyntaxException
+import com.jameskbride.localsns.getTopicsMap
+import com.jameskbride.localsns.models.MessageAttribute
+import com.jameskbride.localsns.models.Topic
+import com.jameskbride.localsns.topics.PublishRequest
+import com.jameskbride.localsns.topics.getTopicArn
+import com.jameskbride.localsns.topics.publishBasicMessageToTopic
+import com.jameskbride.localsns.topics.publishJsonStructure
+import io.vertx.ext.web.RoutingContext
+import org.apache.camel.impl.DefaultCamelContext
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
+import java.util.*
+import java.util.regex.Pattern
+
+private val logger: Logger = LogManager.getLogger("PublishApiRoutes")
+private val gson = Gson()
+
+data class PublishApiRequest(
+    val topicArn: String? = null,
+    val targetArn: String? = null,
+    val message: String,
+    val messageStructure: String? = null,
+    val messageAttributes: Map<String, MessageAttribute>? = null
+)
+
+data class PublishApiResponse(
+    val messageId: String,
+    val topicArn: String
+)
+
+val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
+    try {
+        val body = ctx.body().asString()
+        if (body.isNullOrBlank()) {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("Content-Type", "application/json")
+                .end(gson.toJson(mapOf("error" to "Request body is required")))
+            return@lambda
+        }
+
+        val request = try {
+            gson.fromJson(body, PublishApiRequest::class.java)
+        } catch (e: JsonSyntaxException) {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("Content-Type", "application/json")
+                .end(gson.toJson(mapOf("error" to "Invalid JSON format")))
+            return@lambda
+        }
+
+        // Get topicArn from path parameter or request body
+        val pathTopicArn = ctx.pathParam("topicArn")
+        val topicArn = getTopicArn(
+            pathTopicArn ?: request.topicArn,
+            request.targetArn
+        )
+
+        if (topicArn == null) {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("Content-Type", "application/json")
+                .end(gson.toJson(mapOf("error" to "Either topicArn or targetArn is required")))
+            return@lambda
+        }
+
+        // Validate topic ARN format
+        if (!Pattern.matches(Topic.arnPattern, topicArn)) {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("Content-Type", "application/json")
+                .end(gson.toJson(mapOf("error" to "Invalid TopicArn or TargetArn format: $topicArn")))
+            return@lambda
+        }
+
+        // Check if topic exists
+        val topicsMap = getTopicsMap(ctx.vertx())
+        if (topicsMap == null || !topicsMap.contains(topicArn)) {
+            ctx.response()
+                .setStatusCode(404)
+                .putHeader("Content-Type", "application/json")
+                .end(gson.toJson(mapOf("error" to "Topic not found: $topicArn")))
+            return@lambda
+        }
+
+        // Validate message structure
+        if (request.messageStructure != null && request.messageStructure != "json") {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("Content-Type", "application/json")
+                .end(gson.toJson(mapOf("error" to "MessageStructure must be 'json' if specified")))
+            return@lambda
+        }
+
+        // Validate message content
+        if (request.message.isBlank()) {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("Content-Type", "application/json")
+                .end(gson.toJson(mapOf("error" to "Message cannot be empty")))
+            return@lambda
+        }
+
+        val messageAttributes = request.messageAttributes ?: emptyMap()
+        
+        val publishRequest = PublishRequest(
+            message = request.message,
+            messageAttributes = messageAttributes,
+            topicArn = topicArn
+        )
+
+        // Validate JSON structure if specified
+        if (request.messageStructure == "json") {
+            try {
+                val messages = gson.fromJson(request.message, JsonObject::class.java)
+                if (!messages.has("default")) {
+                    ctx.response()
+                        .setStatusCode(400)
+                        .putHeader("Content-Type", "application/json")
+                        .end(gson.toJson(mapOf("error" to "Attribute 'default' is required when messageStructure is 'json'")))
+                    return@lambda
+                }
+            } catch (e: JsonSyntaxException) {
+                ctx.response()
+                    .setStatusCode(400)
+                    .putHeader("Content-Type", "application/json")
+                    .end(gson.toJson(mapOf("error" to "Invalid JSON in message when messageStructure is 'json'")))
+                return@lambda
+            }
+        }
+
+        // Create Camel context and publish
+        val camelContext = DefaultCamelContext()
+        camelContext.start()
+
+        if (request.messageStructure == "json") {
+            publishJsonStructure(
+                publishRequest,
+                camelContext.createProducerTemplate(),
+                ctx.vertx()
+            )
+        } else {
+            publishBasicMessageToTopic(
+                publishRequest,
+                camelContext.createProducerTemplate(),
+                ctx.vertx()
+            )
+        }
+
+        // Generate message ID and return response
+        val messageId = UUID.randomUUID().toString()
+        val response = PublishApiResponse(messageId, topicArn)
+
+        ctx.response()
+            .setStatusCode(200)
+            .putHeader("Content-Type", "application/json")
+            .end(gson.toJson(response))
+
+        logger.info("Successfully published message to topic: $topicArn with messageId: $messageId")
+
+    } catch (e: Exception) {
+        logger.error("Error publishing message", e)
+        ctx.response()
+            .setStatusCode(500)
+            .putHeader("Content-Type", "application/json")
+            .end(gson.toJson(mapOf("error" to "Internal server error: ${e.message}")))
+    }
+}
