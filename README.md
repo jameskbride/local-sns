@@ -106,6 +106,14 @@ docker-compose up
 * `GET /config` - Returns the current configuration of the local-sns instance.
 * `GET /health` - Returns a 200 status code if the service is running.
 
+## API Documentation
+
+In addition to the AWS SNS XML API, local-sns also provides a JSON REST API for easier integration and development. See the [JSON API Documentation](JSON_API.md) for detailed information about:
+
+- **Topics API**: CRUD operations for topics.
+- **Subscriptions API**: CRUD operations for subscriptions.
+- **Publishing API**: Publish messages with JSON request/response format.
+
 ## Development
 This project uses Kotlin, [Vert.X](https://vertx.io), and [Apache Camel](https://camel.apache.org) for message routing.
 
