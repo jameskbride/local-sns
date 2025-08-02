@@ -5,11 +5,14 @@ import com.jameskbride.localsns.BaseTest
 import com.jameskbride.localsns.api.config.ConfigurationResponse
 import com.jameskbride.localsns.api.config.ErrorResponse
 import com.jameskbride.localsns.api.config.UpdateConfigurationRequest
+import com.jameskbride.localsns.getDbOutputPath
 import com.jameskbride.localsns.models.Configuration
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
 import com.jameskbride.localsns.verticles.MainVerticle
+import com.typesafe.config.ConfigFactory
 import io.vertx.core.Vertx
+import io.vertx.core.buffer.Buffer
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import khttp.responses.Response
@@ -46,7 +49,6 @@ class ConfigurationApiTest : BaseTest() {
 
     @Test
     fun `it can update configuration via JSON API`(testContext: VertxTestContext) {
-        // Start with a clean configuration to ensure predictable test behavior
         resetConfigurationApi()
         
         val currentResponse = getConfigurationApi()
@@ -78,7 +80,7 @@ class ConfigurationApiTest : BaseTest() {
         assertEquals("application/json", response.headers["Content-Type"])
         
         val configuration = gson.fromJson(response.text, ConfigurationResponse::class.java)
-        assertEquals(initialVersion + 1, configuration.version) // Should increment from current version
+        assertEquals(initialVersion + 1, configuration.version)
         assertEquals(1, configuration.topics.size)
         assertEquals(1, configuration.subscriptions.size)
         assertEquals("test-topic", configuration.topics[0].name)
@@ -89,27 +91,7 @@ class ConfigurationApiTest : BaseTest() {
 
     @Test
     fun `it can partially update configuration - topics only`(testContext: VertxTestContext) {
-        // Start with a clean configuration to ensure predictable test behavior
         resetConfigurationApi()
-        
-        val initialTopic = Topic(
-            arn = "arn:aws:sns:us-east-1:123456789012:initial-topic",
-            name = "initial-topic"
-        )
-        
-        val initialSubscription = Subscription(
-            topicArn = "arn:aws:sns:us-east-1:123456789012:initial-topic",
-            arn = "arn:aws:sns:us-east-1:123456789012:initial-subscription",
-            owner = "123456789012",
-            protocol = "sqs",
-            endpoint = "http://localhost:9324/queue/test-queue"
-        )
-        
-        val initialRequest = UpdateConfigurationRequest(
-            topics = listOf(initialTopic),
-            subscriptions = listOf(initialSubscription)
-        )
-        updateConfigurationApi(initialRequest)
         
         val newTopic = Topic(
             arn = "arn:aws:sns:us-east-1:123456789012:new-topic",
@@ -128,26 +110,22 @@ class ConfigurationApiTest : BaseTest() {
         val configuration = gson.fromJson(response.text, ConfigurationResponse::class.java)
         assertEquals(1, configuration.topics.size)
         assertEquals("new-topic", configuration.topics[0].name)
-        assertEquals(1, configuration.subscriptions.size)
-        assertEquals("sqs", configuration.subscriptions[0].protocol)
+        assertEquals(0, configuration.subscriptions.size)
+        
+        val config = ConfigFactory.load()
+        val outputPath = getDbOutputPath(config)
+        val vertx = Vertx.vertx()
+        val outputFile = vertx.fileSystem().readFileBlocking(outputPath)
+        val outputConfig = gson.fromJson(outputFile.toString(), ConfigurationResponse::class.java)
+        assertEquals(1, outputConfig.topics.size)
+        assertEquals("new-topic", outputConfig.topics[0].name)
+        vertx.close()
         
         testContext.completeNow()
     }
 
     @Test
     fun `it can reset configuration via JSON API`(testContext: VertxTestContext) {
-        val topic = Topic(
-            arn = "arn:aws:sns:us-east-1:123456789012:test-topic",
-            name = "test-topic"
-        )
-        
-        val request = UpdateConfigurationRequest(topics = listOf(topic))
-        updateConfigurationApi(request)
-        
-        val getResponse = getConfigurationApi()
-        val beforeReset = gson.fromJson(getResponse.text, ConfigurationResponse::class.java)
-        assertEquals(1, beforeReset.topics.size)
-        
         val resetResponse = resetConfigurationApi()
         assertEquals(204, resetResponse.statusCode)
         
@@ -156,6 +134,16 @@ class ConfigurationApiTest : BaseTest() {
         assertEquals(1, afterReset.version)
         assertTrue(afterReset.topics.isEmpty())
         assertTrue(afterReset.subscriptions.isEmpty())
+        
+        val config = ConfigFactory.load()
+        val outputPath = getDbOutputPath(config)
+        val vertx = Vertx.vertx()
+        val outputFile = vertx.fileSystem().readFileBlocking(outputPath)
+        val outputConfig = gson.fromJson(outputFile.toString(), ConfigurationResponse::class.java)
+        assertEquals(1, outputConfig.version)
+        assertTrue(outputConfig.topics.isEmpty())
+        assertTrue(outputConfig.subscriptions.isEmpty())
+        vertx.close()
         
         testContext.completeNow()
     }
@@ -208,6 +196,93 @@ class ConfigurationApiTest : BaseTest() {
         assertEquals("INVALID_REQUEST", error.error)
         assertEquals("Request body is required", error.message)
         
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it updates output path db when configuration is modified`(testContext: VertxTestContext) {
+        val config = ConfigFactory.load()
+        val outputPath = getDbOutputPath(config)
+        val vertx = Vertx.vertx()
+        
+        resetConfigurationApi()
+        
+        val initialOutputFile = vertx.fileSystem().readFileBlocking(outputPath)
+        val initialOutputConfig = gson.fromJson(initialOutputFile.toString(), ConfigurationResponse::class.java)
+        assertEquals(1, initialOutputConfig.version)
+        assertTrue(initialOutputConfig.topics.isEmpty())
+        assertTrue(initialOutputConfig.subscriptions.isEmpty())
+        
+        val topic = Topic(
+            arn = "arn:aws:sns:us-east-1:123456789012:test-topic",
+            name = "test-topic"
+        )
+        
+        val subscription = Subscription(
+            topicArn = "arn:aws:sns:us-east-1:123456789012:test-topic",
+            arn = "arn:aws:sns:us-east-1:123456789012:test-subscription",
+            owner = "123456789012",
+            protocol = "http",
+            endpoint = "http://example.com/webhook",
+            subscriptionAttributes = mapOf("RawMessageDelivery" to "true")
+        )
+        
+        val request = UpdateConfigurationRequest(
+            topics = listOf(topic),
+            subscriptions = listOf(subscription)
+        )
+        
+        val updateResponse = updateConfigurationApi(request)
+        assertEquals(200, updateResponse.statusCode)
+        
+        val updatedOutputFile = vertx.fileSystem().readFileBlocking(outputPath)
+        val updatedOutputConfig = gson.fromJson(updatedOutputFile.toString(), ConfigurationResponse::class.java)
+        assertEquals(2, updatedOutputConfig.version) // Should be incremented
+        assertEquals(1, updatedOutputConfig.topics.size)
+        assertEquals("test-topic", updatedOutputConfig.topics[0].name)
+        assertEquals(1, updatedOutputConfig.subscriptions.size)
+        assertEquals("http", updatedOutputConfig.subscriptions[0].protocol)
+        
+        val backupResponse = createConfigurationBackupApi()
+        assertEquals(201, backupResponse.statusCode)
+        
+        val backupResult = gson.fromJson(backupResponse.text, Map::class.java)
+        val backupPath = backupResult["backupPath"] as String
+        
+        val backupFile = vertx.fileSystem().readFileBlocking(backupPath)
+        val backupConfig = gson.fromJson(backupFile.toString(), ConfigurationResponse::class.java)
+        assertEquals(1, backupConfig.version)
+        assertEquals(0, backupConfig.topics.size)
+        assertEquals(0, backupConfig.subscriptions.size)
+        
+        vertx.close()
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it always reads from configured source path not output path`(testContext: VertxTestContext) {
+        val config = ConfigFactory.load()
+        val outputPath = getDbOutputPath(config)
+        val vertx = Vertx.vertx()
+        
+        val modifiedConfig = Configuration(
+            version = 99,
+            timestamp = System.currentTimeMillis(),
+            topics = listOf(Topic("arn:fake", "fake-topic")),
+            subscriptions = listOf()
+        )
+        val modifiedBuffer = Buffer.buffer(gson.toJson(modifiedConfig))
+        vertx.fileSystem().writeFileBlocking(outputPath, modifiedBuffer)
+        
+        val response = getConfigurationApi()
+        assertEquals(200, response.statusCode)
+        
+        val configuration = gson.fromJson(response.text, ConfigurationResponse::class.java)
+        assertEquals(1, configuration.version)
+        assertTrue(configuration.topics.isEmpty())
+        assertTrue(configuration.subscriptions.isEmpty())
+        
+        vertx.close()
         testContext.completeNow()
     }
 

@@ -37,7 +37,6 @@ val listTopicsApiRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
     }
 }
 
-// POST /api/topics - Create a new topic
 val createTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
         val body = ctx.bodyAsString
@@ -98,7 +97,6 @@ val createTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
     }
 }
 
-// GET /api/topics/:arn - Get a specific topic by ARN
 val getTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
         val topicArn = ctx.pathParam("arn")
@@ -132,7 +130,6 @@ val getTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     }
 }
 
-// PUT /api/topics/:arn - Update a topic (currently only supports name changes)
 val updateTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
         val topicArn = ctx.pathParam("arn")
