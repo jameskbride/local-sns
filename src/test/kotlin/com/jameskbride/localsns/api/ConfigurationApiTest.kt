@@ -252,15 +252,17 @@ class ConfigurationApiTest : BaseTest() {
         val backupFile = vertx.fileSystem().readFileBlocking(backupPath)
         val backupConfig = gson.fromJson(backupFile.toString(), ConfigurationResponse::class.java)
         assertEquals(1, backupConfig.version)
-        assertEquals(0, backupConfig.topics.size)
-        assertEquals(0, backupConfig.subscriptions.size)
+        assertEquals(1, backupConfig.topics.size)
+        assertEquals("test-topic", backupConfig.topics[0].name)
+        assertEquals(1, backupConfig.subscriptions.size)
+        assertEquals("http", backupConfig.subscriptions[0].protocol)
         
         vertx.close()
         testContext.completeNow()
     }
 
     @Test
-    fun `it always reads from configured source path not output path`(testContext: VertxTestContext) {
+    fun `it reads from output path when it exists instead of source path`(testContext: VertxTestContext) {
         val config = ConfigFactory.load()
         val outputPath = getDbOutputPath(config)
         val vertx = Vertx.vertx()
@@ -278,8 +280,9 @@ class ConfigurationApiTest : BaseTest() {
         assertEquals(200, response.statusCode)
         
         val configuration = gson.fromJson(response.text, ConfigurationResponse::class.java)
-        assertEquals(1, configuration.version)
-        assertTrue(configuration.topics.isEmpty())
+        assertEquals(99, configuration.version)
+        assertEquals(1, configuration.topics.size)
+        assertEquals("fake-topic", configuration.topics[0].name)
         assertTrue(configuration.subscriptions.isEmpty())
         
         vertx.close()

@@ -74,7 +74,11 @@ val getConfigurationApiRoute: (RoutingContext) -> Unit = { ctx: RoutingContext -
     try {
         val vertx = ctx.vertx()
         val config = ConfigFactory.load()
-        val dbPath = getDbPath(config)
+        val dbPath = if (vertx.fileSystem().existsBlocking(getDbOutputPath(config))) {
+            getDbOutputPath(config)
+        } else {
+            getDbPath(config)
+        }
         
         val configuration = try {
             val dbFile = vertx.fileSystem().readFileBlocking(dbPath)
@@ -122,7 +126,11 @@ val updateConfigurationApiRoute: (RoutingContext) -> Unit = route@{ ctx: Routing
 
         val vertx = ctx.vertx()
         val config = ConfigFactory.load()
-        val dbPath = getDbPath(config)
+        val dbPath = if (vertx.fileSystem().existsBlocking(getDbOutputPath(config))) {
+            getDbOutputPath(config)
+        } else {
+            getDbPath(config)
+        }
 
         val currentConfiguration = try {
             val dbFile = vertx.fileSystem().readFileBlocking(dbPath)
@@ -214,7 +222,11 @@ val createConfigurationBackupApiRoute: (RoutingContext) -> Unit = { ctx: Routing
     try {
         val vertx = ctx.vertx()
         val config = ConfigFactory.load()
-        val dbPath = getDbPath(config)
+        val dbPath = if (vertx.fileSystem().existsBlocking(getDbOutputPath(config))) {
+            getDbOutputPath(config)
+        } else {
+            getDbPath(config)
+        }
 
         val configuration = try {
             val dbFile = vertx.fileSystem().readFileBlocking(dbPath)
