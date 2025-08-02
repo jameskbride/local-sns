@@ -4,6 +4,7 @@ import com.jameskbride.localsns.models.Topic
 import com.typesafe.config.ConfigFactory
 import khttp.post
 import khttp.get
+import khttp.delete
 import khttp.responses.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
@@ -13,6 +14,13 @@ open class BaseTest {
     protected fun postFormData(payload: Map<String, String?>): Response {
         val baseUrl = getBaseUrl()
         return post(baseUrl, data = payload)
+    }
+
+    /**
+     * Resets the configuration to a clean state for testing
+     */
+    protected fun resetConfigurationApi(): Response {
+        return delete("${getBaseUrl()}/api/config")
     }
 
     companion object {

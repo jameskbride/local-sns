@@ -20,5 +20,12 @@ jobs:
           distribution: 'corretto'
           java-version: '11'
 
+      - name: Prepare test environment
+        run: |
+          # Clean up any existing test database files
+          rm -f testDb.json tmp/testDb.json tmp/test-db.json
+          # Ensure tmp directory exists for test outputs
+          mkdir -p tmp
+
       - name: Build and Test with Gradle
         run: ./gradlew build

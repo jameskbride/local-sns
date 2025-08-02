@@ -46,6 +46,9 @@ class ConfigurationApiTest : BaseTest() {
 
     @Test
     fun `it can update configuration via JSON API`(testContext: VertxTestContext) {
+        // Start with a clean configuration to ensure predictable test behavior
+        resetConfigurationApi()
+        
         val currentResponse = getConfigurationApi()
         val currentConfig = gson.fromJson(currentResponse.text, ConfigurationResponse::class.java)
         val initialVersion = currentConfig.version
@@ -86,6 +89,9 @@ class ConfigurationApiTest : BaseTest() {
 
     @Test
     fun `it can partially update configuration - topics only`(testContext: VertxTestContext) {
+        // Start with a clean configuration to ensure predictable test behavior
+        resetConfigurationApi()
+        
         val initialTopic = Topic(
             arn = "arn:aws:sns:us-east-1:123456789012:initial-topic",
             name = "initial-topic"
@@ -215,10 +221,6 @@ class ConfigurationApiTest : BaseTest() {
             headers = mapOf("Content-Type" to "application/json"),
             data = gson.toJson(request)
         )
-    }
-
-    private fun resetConfigurationApi(): Response {
-        return khttp.delete("${getBaseUrl()}/api/config")
     }
 
     private fun createConfigurationBackupApi(): Response {
