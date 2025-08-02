@@ -149,7 +149,7 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it can get a specific subscription via JSON API`(testContext: VertxTestContext) {
-        val (topic, subscription) = createTopicAndSubscription()
+        val (_, subscription) = createTopicAndSubscription()
         
         val response = getSubscriptionApi(subscription.arn)
         
@@ -181,7 +181,7 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it can update subscription attributes via JSON API`(testContext: VertxTestContext) {
-        val (topic, subscription) = createTopicAndSubscription()
+        val (_, subscription) = createTopicAndSubscription()
         
         val updateRequest = UpdateSubscriptionRequest(
             attributes = mapOf(
@@ -235,7 +235,7 @@ class SubscriptionsApiTest : BaseTest() {
 
     @Test
     fun `it can delete a subscription via JSON API`(testContext: VertxTestContext) {
-        val (topic, subscription) = createTopicAndSubscription()
+        val (_, subscription) = createTopicAndSubscription()
         
         val response = deleteSubscriptionApi(subscription.arn)
         

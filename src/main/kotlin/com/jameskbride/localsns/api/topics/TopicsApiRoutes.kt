@@ -39,7 +39,7 @@ val listTopicsApiRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
 
 val createTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val body = ctx.bodyAsString
+        val body = ctx.body().asString()
         if (body.isNullOrBlank()) {
             sendJsonError(ctx, "INVALID_REQUEST", "Request body is required", 400)
             return@route
@@ -143,7 +143,7 @@ val updateTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
             return@route
         }
 
-        val body = ctx.bodyAsString
+        val body = ctx.body().asString()
         if (body.isNullOrBlank()) {
             sendJsonError(ctx, "INVALID_REQUEST", "Request body is required", 400)
             return@route

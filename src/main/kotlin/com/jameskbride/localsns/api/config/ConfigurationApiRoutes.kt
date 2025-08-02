@@ -107,7 +107,7 @@ val getConfigurationApiRoute: (RoutingContext) -> Unit = { ctx: RoutingContext -
 
 val updateConfigurationApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val body = ctx.bodyAsString
+        val body = ctx.body().asString()
         if (body.isNullOrBlank()) {
             sendJsonError(ctx, "INVALID_REQUEST", "Request body is required", 400)
             return@route

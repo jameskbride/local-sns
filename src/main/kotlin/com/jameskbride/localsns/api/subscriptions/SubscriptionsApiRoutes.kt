@@ -114,7 +114,7 @@ val listSubscriptionsByTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: Ro
 // POST /api/subscriptions - Create a new subscription
 val createSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val body = ctx.bodyAsString
+        val body = ctx.body().asString()
         if (body.isNullOrBlank()) {
             sendJsonError(ctx, "INVALID_REQUEST", "Request body is required", 400)
             return@route
@@ -257,7 +257,7 @@ val updateSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
             return@route
         }
 
-        val body = ctx.bodyAsString
+        val body = ctx.body().asString()
         if (body.isNullOrBlank()) {
             sendJsonError(ctx, "INVALID_REQUEST", "Request body is required", 400)
             return@route
