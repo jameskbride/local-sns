@@ -80,7 +80,7 @@ class ConfigurationApiTest : BaseTest() {
         assertEquals("application/json", response.headers["Content-Type"])
         
         val configuration = gson.fromJson(response.text, ConfigurationResponse::class.java)
-        assertEquals(initialVersion + 1, configuration.version)
+        assertEquals(initialVersion, configuration.version)
         assertEquals(1, configuration.topics.size)
         assertEquals(1, configuration.subscriptions.size)
         assertEquals("test-topic", configuration.topics[0].name)
@@ -237,7 +237,7 @@ class ConfigurationApiTest : BaseTest() {
         
         val updatedOutputFile = vertx.fileSystem().readFileBlocking(outputPath)
         val updatedOutputConfig = gson.fromJson(updatedOutputFile.toString(), ConfigurationResponse::class.java)
-        assertEquals(2, updatedOutputConfig.version) // Should be incremented
+        assertEquals(1, updatedOutputConfig.version)
         assertEquals(1, updatedOutputConfig.topics.size)
         assertEquals("test-topic", updatedOutputConfig.topics[0].name)
         assertEquals(1, updatedOutputConfig.subscriptions.size)

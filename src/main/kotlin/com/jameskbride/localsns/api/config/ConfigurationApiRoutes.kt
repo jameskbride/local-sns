@@ -136,7 +136,7 @@ val updateConfigurationApiRoute: (RoutingContext) -> Unit = route@{ ctx: Routing
         }
         
         val updatedConfiguration = Configuration(
-            version = currentConfiguration.version + 1,
+            version = currentConfiguration.version,
             timestamp = System.currentTimeMillis(),
             topics = request.topics ?: currentConfiguration.topics,
             subscriptions = request.subscriptions ?: currentConfiguration.subscriptions
