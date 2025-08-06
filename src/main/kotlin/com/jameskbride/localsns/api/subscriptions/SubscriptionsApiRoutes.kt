@@ -1,6 +1,7 @@
 package com.jameskbride.localsns.api.subscriptions
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonSyntaxException
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.Subscription
@@ -10,11 +11,12 @@ import io.vertx.ext.web.RoutingContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.net.URI
+import java.net.URLDecoder
 import java.util.*
 import java.util.regex.Pattern
 
 private val logger: Logger = LogManager.getLogger("SubscriptionsApiRoutes")
-private val gson = Gson()
+private val gson = GsonBuilder().disableHtmlEscaping().create()
 
 data class CreateSubscriptionRequest(
     val topicArn: String,
@@ -68,7 +70,7 @@ val listSubscriptionsApiRoute: (RoutingContext) -> Unit = { ctx: RoutingContext 
 // GET /api/topics/:topicArn/subscriptions - List subscriptions for a specific topic
 val listSubscriptionsByTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val topicArn = ctx.pathParam("topicArn")
+        val topicArn = ctx.pathParam("topicArn")?.let { URLDecoder.decode(it, "UTF-8") }
         if (topicArn.isNullOrBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "Topic ARN is required", 400)
             return@route
@@ -202,7 +204,7 @@ val createSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
 
 val getSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val subscriptionArn = ctx.pathParam("arn")
+        val subscriptionArn = ctx.pathParam("arn")?.let { URLDecoder.decode(it, "UTF-8") }
         if (subscriptionArn.isNullOrBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "Subscription ARN is required", 400)
             return@route
@@ -246,7 +248,7 @@ val getSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingCont
 
 val updateSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val subscriptionArn = ctx.pathParam("arn")
+        val subscriptionArn = ctx.pathParam("arn")?.let { URLDecoder.decode(it, "UTF-8") }
         if (subscriptionArn.isNullOrBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "Subscription ARN is required", 400)
             return@route
@@ -325,7 +327,7 @@ val updateSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingC
 
 val deleteSubscriptionApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val subscriptionArn = ctx.pathParam("arn")
+        val subscriptionArn = ctx.pathParam("arn")?.let { URLDecoder.decode(it, "UTF-8") }
         if (subscriptionArn.isNullOrBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "Subscription ARN is required", 400)
             return@route

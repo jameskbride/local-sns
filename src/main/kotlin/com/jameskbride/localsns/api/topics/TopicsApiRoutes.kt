@@ -1,6 +1,7 @@
 package com.jameskbride.localsns.api.topics
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonSyntaxException
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.Topic
@@ -9,10 +10,11 @@ import io.vertx.core.shareddata.LocalMap
 import io.vertx.ext.web.RoutingContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import java.net.URLDecoder
 import java.util.regex.Pattern
 
 private val logger: Logger = LogManager.getLogger("TopicsApiRoutes")
-private val gson = Gson()
+private val gson = GsonBuilder().disableHtmlEscaping().create()
 
 data class CreateTopicRequest(val name: String)
 data class UpdateTopicRequest(val name: String)
@@ -99,7 +101,7 @@ val createTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
 
 val getTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val topicArn = ctx.pathParam("arn")
+        val topicArn = ctx.pathParam("arn")?.let { URLDecoder.decode(it, "UTF-8") }
         if (topicArn.isNullOrBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "Topic ARN is required", 400)
             return@route
@@ -132,7 +134,7 @@ val getTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
 
 val updateTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val topicArn = ctx.pathParam("arn")
+        val topicArn = ctx.pathParam("arn")?.let { URLDecoder.decode(it, "UTF-8") }
         if (topicArn.isNullOrBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "Topic ARN is required", 400)
             return@route
@@ -205,7 +207,7 @@ val updateTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
 
 val deleteTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     try {
-        val topicArn = ctx.pathParam("arn")
+        val topicArn = ctx.pathParam("arn")?.let { URLDecoder.decode(it, "UTF-8") }
         if (topicArn.isNullOrBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "Topic ARN is required", 400)
             return@route

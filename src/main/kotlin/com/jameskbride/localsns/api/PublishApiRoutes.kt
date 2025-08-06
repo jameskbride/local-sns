@@ -1,6 +1,7 @@
 package com.jameskbride.localsns.api
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.JsonSyntaxException
 import com.jameskbride.localsns.getTopicsMap
@@ -14,11 +15,12 @@ import io.vertx.ext.web.RoutingContext
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import java.net.URLDecoder
 import java.util.*
 import java.util.regex.Pattern
 
 private val logger: Logger = LogManager.getLogger("PublishApiRoutes")
-private val gson = Gson()
+private val gson = GsonBuilder().disableHtmlEscaping().create()
 
 data class PublishApiRequest(
     val topicArn: String? = null,
@@ -54,7 +56,7 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             return@lambda
         }
 
-        val pathTopicArn = ctx.pathParam("topicArn")
+        val pathTopicArn = ctx.pathParam("topicArn")?.let { URLDecoder.decode(it, "UTF-8") }
         val topicArn = getTopicArn(
             pathTopicArn ?: request.topicArn,
             request.targetArn

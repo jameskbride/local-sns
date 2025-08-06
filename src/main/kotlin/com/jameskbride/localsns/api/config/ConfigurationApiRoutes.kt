@@ -1,6 +1,7 @@
 package com.jameskbride.localsns.api.config
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.JsonSyntaxException
 import com.jameskbride.localsns.*
@@ -16,7 +17,7 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 private val logger: Logger = LogManager.getLogger("ConfigurationApiRoutes")
-private val gson = Gson()
+private val gson = GsonBuilder().disableHtmlEscaping().create()
 
 data class UpdateConfigurationRequest(
     val topics: List<Topic>? = null,
