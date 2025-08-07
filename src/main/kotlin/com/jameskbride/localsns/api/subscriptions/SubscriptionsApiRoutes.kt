@@ -3,6 +3,11 @@ package com.jameskbride.localsns.api.subscriptions
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonSyntaxException
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.reflect.TypeToken
+import java.lang.reflect.Type
 import com.jameskbride.localsns.*
 import com.jameskbride.localsns.models.Subscription
 import com.jameskbride.localsns.models.Topic
@@ -15,8 +20,40 @@ import java.net.URLDecoder
 import java.util.*
 import java.util.regex.Pattern
 
+class CreateSubscriptionRequestDeserializer : JsonDeserializer<CreateSubscriptionRequest> {
+    override fun deserialize(
+        json: JsonElement,
+        typeOfT: Type,
+        context: JsonDeserializationContext
+    ): CreateSubscriptionRequest {
+        if (!json.isJsonObject) {
+            throw JsonSyntaxException("Expected JSON object")
+        }
+        
+        val jsonObject = json.asJsonObject
+        
+        val topicArn = jsonObject.get("topicArn")?.asString ?: ""
+        val protocol = jsonObject.get("protocol")?.asString ?: ""
+        val endpoint = jsonObject.get("endpoint")?.asString ?: ""
+        
+        val attributes = if (jsonObject.has("attributes") && !jsonObject.get("attributes").isJsonNull) {
+            context.deserialize<Map<String, String>>(
+                jsonObject.get("attributes"),
+                object : TypeToken<Map<String, String>>() {}.type
+            )
+        } else {
+            mapOf()
+        }
+        
+        return CreateSubscriptionRequest(topicArn, protocol, endpoint, attributes)
+    }
+}
+
 private val logger: Logger = LogManager.getLogger("SubscriptionsApiRoutes")
-private val gson = GsonBuilder().disableHtmlEscaping().create()
+private val gson = GsonBuilder()
+    .disableHtmlEscaping()
+    .registerTypeAdapter(CreateSubscriptionRequest::class.java, CreateSubscriptionRequestDeserializer())
+    .create()
 
 data class CreateSubscriptionRequest(
     val topicArn: String,
