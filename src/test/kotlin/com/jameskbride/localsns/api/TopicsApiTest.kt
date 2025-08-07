@@ -3,10 +3,8 @@ package com.jameskbride.localsns.api
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.jameskbride.localsns.BaseTest
-import com.jameskbride.localsns.api.topics.CreateTopicRequest
 import com.jameskbride.localsns.api.topics.ErrorResponse
 import com.jameskbride.localsns.api.topics.TopicResponse
-import com.jameskbride.localsns.api.topics.UpdateTopicRequest
 import com.jameskbride.localsns.verticles.MainVerticle
 import io.vertx.core.Vertx
 import io.vertx.junit5.VertxExtension
@@ -42,8 +40,7 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it can create a topic via JSON API`(testContext: VertxTestContext) {
-        val request = CreateTopicRequest("test-topic")
-        val response = createTopicApi(request)
+        val response = createTopicApi("""{"name": "test-topic"}""")
         
         assertEquals(201, response.statusCode)
         assertEquals("application/json", response.headers["Content-Type"])
@@ -57,9 +54,9 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it returns existing topic when creating duplicate via JSON API`(testContext: VertxTestContext) {
-        val request = CreateTopicRequest("duplicate-topic")
-        val firstResponse = createTopicApi(request)
-        val secondResponse = createTopicApi(request)
+        val topicJson = """{"name": "duplicate-topic"}"""
+        val firstResponse = createTopicApi(topicJson)
+        val secondResponse = createTopicApi(topicJson)
         
         assertEquals(201, firstResponse.statusCode)
         assertEquals(200, secondResponse.statusCode)
@@ -75,8 +72,49 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it validates topic name when creating via JSON API`(testContext: VertxTestContext) {
-        val request = CreateTopicRequest("")
-        val response = createTopicApi(request)
+        val response = createTopicApi("""{"name": ""}""")
+        
+        assertEquals(400, response.statusCode)
+        assertEquals("application/json", response.headers["Content-Type"])
+        
+        val error = gson.fromJson(response.text, ErrorResponse::class.java)
+        assertEquals("MISSING_PARAMETER", error.error)
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it validates missing name field when creating topic via JSON API`(testContext: VertxTestContext) {
+        val response = createTopicApi("""{}""")
+        
+        assertEquals(400, response.statusCode)
+        assertEquals("application/json", response.headers["Content-Type"])
+        
+        val error = gson.fromJson(response.text, ErrorResponse::class.java)
+        assertEquals("MISSING_PARAMETER", error.error)
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it validates null name field when creating topic via JSON API`(testContext: VertxTestContext) {
+        val response = createTopicApi("""{"name": null}""")
+        
+        assertEquals(400, response.statusCode)
+        assertEquals("application/json", response.headers["Content-Type"])
+        
+        val error = gson.fromJson(response.text, ErrorResponse::class.java)
+        assertEquals("MISSING_PARAMETER", error.error)
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it validates missing name field when updating topic via JSON API`(testContext: VertxTestContext) {
+        val createResponse = createTopicApi("""{"name": "update-test"}""")
+        val createdTopic = gson.fromJson(createResponse.text, TopicResponse::class.java)
+        
+        val response = updateTopicApi(createdTopic.arn, """{}""")
         
         assertEquals(400, response.statusCode)
         assertEquals("application/json", response.headers["Content-Type"])
@@ -89,11 +127,7 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it validates invalid JSON when creating topic`(testContext: VertxTestContext) {
-        val response = khttp.post(
-            url = "${getBaseUrl()}/api/topics",
-            headers = mapOf("Content-Type" to "application/json"),
-            data = "{ invalid json }"
-        )
+        val response = createTopicApi("{ invalid json }")
         
         assertEquals(400, response.statusCode)
         assertEquals("application/json", response.headers["Content-Type"])
@@ -106,8 +140,7 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it can get a specific topic via JSON API`(testContext: VertxTestContext) {
-        val request = CreateTopicRequest("get-topic-test")
-        val createResponse = createTopicApi(request)
+        val createResponse = createTopicApi("""{"name": "get-topic-test"}""")
         val createdTopic = gson.fromJson(createResponse.text, TopicResponse::class.java)
         
         val response = getTopicApi(createdTopic.arn)
@@ -138,13 +171,11 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it can update a topic via JSON API`(testContext: VertxTestContext) {
-        val createRequest = CreateTopicRequest("update-topic-test")
-        val createResponse = createTopicApi(createRequest)
+        val createResponse = createTopicApi("""{"name": "update-topic-test"}""")
         val createdTopic = gson.fromJson(createResponse.text, TopicResponse::class.java)
         
         // Then update it
-        val updateRequest = UpdateTopicRequest("updated-topic-name")
-        val response = updateTopicApi(createdTopic.arn, updateRequest)
+        val response = updateTopicApi(createdTopic.arn, """{"name": "updated-topic-name"}""")
         
         assertEquals(200, response.statusCode)
         assertEquals("application/json", response.headers["Content-Type"])
@@ -160,8 +191,7 @@ class TopicsApiTest : BaseTest() {
     @Test
     fun `it returns 404 when updating non-existent topic via JSON API`(testContext: VertxTestContext) {
         val fakeArn = "arn:aws:sns:us-east-1:000000000000:non-existent"
-        val updateRequest = UpdateTopicRequest("new-name")
-        val response = updateTopicApi(fakeArn, updateRequest)
+        val response = updateTopicApi(fakeArn, """{"name": "new-name"}""")
         
         assertEquals(404, response.statusCode)
         assertEquals("application/json", response.headers["Content-Type"])
@@ -174,8 +204,7 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it can delete a topic via JSON API`(testContext: VertxTestContext) {
-        val createRequest = CreateTopicRequest("delete-topic-test")
-        val createResponse = createTopicApi(createRequest)
+        val createResponse = createTopicApi("""{"name": "delete-topic-test"}""")
         val createdTopic = gson.fromJson(createResponse.text, TopicResponse::class.java)
         
         val response = deleteTopicApi(createdTopic.arn)
@@ -204,8 +233,8 @@ class TopicsApiTest : BaseTest() {
 
     @Test
     fun `it shows created topics in list via JSON API`(testContext: VertxTestContext) {
-        val topic1 = gson.fromJson(createTopicApi(CreateTopicRequest("list-topic-1")).text, TopicResponse::class.java)
-        val topic2 = gson.fromJson(createTopicApi(CreateTopicRequest("list-topic-2")).text, TopicResponse::class.java)
+        val topic1 = gson.fromJson(createTopicApi("""{"name": "list-topic-1"}""").text, TopicResponse::class.java)
+        val topic2 = gson.fromJson(createTopicApi("""{"name": "list-topic-2"}""").text, TopicResponse::class.java)
         
         val response = getTopicsApi()
         assertEquals(200, response.statusCode)
@@ -222,11 +251,11 @@ class TopicsApiTest : BaseTest() {
         return khttp.get("${getBaseUrl()}/api/topics")
     }
 
-    private fun createTopicApi(request: CreateTopicRequest): Response {
+    private fun createTopicApi(jsonData: String): Response {
         return khttp.post(
             url = "${getBaseUrl()}/api/topics",
             headers = mapOf("Content-Type" to "application/json"),
-            data = gson.toJson(request)
+            data = jsonData
         )
     }
 
@@ -234,11 +263,11 @@ class TopicsApiTest : BaseTest() {
         return khttp.get("${getBaseUrl()}/api/topics/$arn")
     }
 
-    private fun updateTopicApi(arn: String, request: UpdateTopicRequest): Response {
+    private fun updateTopicApi(arn: String, jsonData: String): Response {
         return khttp.put(
             url = "${getBaseUrl()}/api/topics/$arn",
             headers = mapOf("Content-Type" to "application/json"),
-            data = gson.toJson(request)
+            data = jsonData
         )
     }
 

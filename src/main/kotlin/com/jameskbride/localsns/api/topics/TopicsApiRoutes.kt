@@ -16,8 +16,8 @@ import java.util.regex.Pattern
 private val logger: Logger = LogManager.getLogger("TopicsApiRoutes")
 private val gson = GsonBuilder().disableHtmlEscaping().create()
 
-data class CreateTopicRequest(val name: String)
-data class UpdateTopicRequest(val name: String)
+data class CreateTopicRequest(val name: String?)
+data class UpdateTopicRequest(val name: String?)
 data class TopicResponse(val arn: String, val name: String)
 data class ErrorResponse(val error: String, val message: String)
 
@@ -54,7 +54,7 @@ val createTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
             return@route
         }
 
-        if (request.name.isBlank()) {
+        if (request.name.isNullOrBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "Topic name is required", 400)
             return@route
         }
@@ -158,7 +158,7 @@ val updateTopicApiRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext 
             return@route
         }
 
-        if (request.name.isBlank()) {
+        if (request.name.isNullOrBlank()) {
             sendJsonError(ctx, "MISSING_PARAMETER", "Topic name is required", 400)
             return@route
         }
