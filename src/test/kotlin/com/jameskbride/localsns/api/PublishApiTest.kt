@@ -2,7 +2,6 @@ package com.jameskbride.localsns.api
 
 import com.google.gson.Gson
 import com.jameskbride.localsns.BaseTest
-import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.verticles.MainVerticle
 import io.vertx.core.Vertx
 import io.vertx.junit5.VertxExtension
@@ -28,28 +27,14 @@ class PublishApiTest : BaseTest() {
         return post("${baseUrl}api/topics", json = requestBody)
     }
 
-    private fun publishMessageApi(topicArn: String, message: String, messageAttributes: Map<String, MessageAttribute>? = null, messageStructure: String? = null): Response {
+    private fun publishMessageApi(topicArn: String, jsonBody: String): Response {
         val baseUrl = getBaseUrl()
-        val requestBody = mutableMapOf<String, Any>(
-            "message" to message
-        )
-        messageAttributes?.let { requestBody["messageAttributes"] = it }
-        messageStructure?.let { requestBody["messageStructure"] = it }
-        
-        return post("${baseUrl}api/topics/$topicArn/publish", json = requestBody)
+        return post("${baseUrl}api/topics/$topicArn/publish", data = jsonBody, headers = mapOf("Content-Type" to "application/json"))
     }
 
-    private fun publishMessageGeneralApi(topicArn: String? = null, targetArn: String? = null, message: String, messageAttributes: Map<String, MessageAttribute>? = null, messageStructure: String? = null): Response {
+    private fun publishMessageGeneralApi(jsonBody: String): Response {
         val baseUrl = getBaseUrl()
-        val requestBody = mutableMapOf<String, Any>(
-            "message" to message
-        )
-        topicArn?.let { requestBody["topicArn"] = it }
-        targetArn?.let { requestBody["targetArn"] = it }
-        messageAttributes?.let { requestBody["messageAttributes"] = it }
-        messageStructure?.let { requestBody["messageStructure"] = it }
-        
-        return post("${baseUrl}api/publish", json = requestBody)
+        return post("${baseUrl}api/publish", data = jsonBody, headers = mapOf("Content-Type" to "application/json"))
     }
 
     @Test
@@ -60,7 +45,8 @@ class PublishApiTest : BaseTest() {
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        val publishResponse = publishMessageApi(topicArn, "Hello, SNS!")
+        val jsonBody = """{"message": "Hello, SNS!"}"""
+        val publishResponse = publishMessageApi(topicArn, jsonBody)
         
         Assertions.assertEquals(200, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -80,7 +66,8 @@ class PublishApiTest : BaseTest() {
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = "Hello, SNS via general endpoint!")
+        val jsonBody = """{"topicArn": "$topicArn", "message": "Hello, SNS via general endpoint!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(200, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -100,12 +87,24 @@ class PublishApiTest : BaseTest() {
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        val messageAttributes = mapOf(
-            "attr1" to MessageAttribute("attr1", "value1", "String"),
-            "attr2" to MessageAttribute("attr2", "value2", "String")
-        )
+        val jsonBody = """{
+            "topicArn": "$topicArn",
+            "message": "Hello with attributes!",
+            "messageAttributes": {
+                "attr1": {
+                    "name": "attr1",
+                    "value": "value1",
+                    "type": "String"
+                },
+                "attr2": {
+                    "name": "attr2",
+                    "value": "value2",
+                    "type": "String"
+                }
+            }
+        }"""
         
-        val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = "Hello with attributes!", messageAttributes = messageAttributes)
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(200, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -125,13 +124,13 @@ class PublishApiTest : BaseTest() {
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        val jsonMessage = mapOf(
-            "default" to "Default message",
-            "sqs" to "SQS specific message",
-            "http" to "HTTP specific message"
-        )
+        val jsonBody = """{
+            "topicArn": "$topicArn",
+            "message": "{\"default\":\"Default message\",\"sqs\":\"SQS specific message\",\"http\":\"HTTP specific message\"}",
+            "messageStructure": "json"
+        }"""
         
-        val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = gson.toJson(jsonMessage), messageStructure = "json")
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(200, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -151,7 +150,8 @@ class PublishApiTest : BaseTest() {
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        val publishResponse = publishMessageGeneralApi(targetArn = topicArn, message = "Hello with targetArn!")
+        val jsonBody = """{"targetArn": "$topicArn", "message": "Hello with targetArn!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(200, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -193,7 +193,8 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it returns 400 when neither topicArn nor targetArn is provided`(testContext: VertxTestContext) {
-        val publishResponse = publishMessageGeneralApi(message = "Hello, SNS!")
+        val jsonBody = """{"message": "Hello, SNS!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(400, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -205,8 +206,59 @@ class PublishApiTest : BaseTest() {
     }
 
     @Test
+    fun `it returns 400 when both topicArn and targetArn fields are missing from JSON`(testContext: VertxTestContext) {
+        // Test with a JSON that only contains message field - no topicArn or targetArn fields at all
+        val jsonBody = """{"message": "Hello, SNS without any ARN fields!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(400, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData["error"].toString().contains("Either topicArn or targetArn is required"))
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it returns 400 when topicArn and targetArn are null in JSON`(testContext: VertxTestContext) {
+        // Test with explicit null values for both fields
+        val jsonBody = """{"topicArn": null, "targetArn": null, "message": "Hello, SNS with null ARNs!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(400, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData["error"].toString().contains("Either topicArn or targetArn is required"))
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it returns 400 when JSON contains only empty object`(testContext: VertxTestContext) {
+        // Test with completely empty JSON object
+        val jsonBody = """{}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(400, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        // This should fail for missing message field first, or missing ARN fields
+        Assertions.assertTrue(
+            responseData["error"].toString().contains("Either topicArn or targetArn is required") ||
+            responseData["error"].toString().contains("Message") ||
+            responseData["error"].toString().contains("message")
+        )
+        
+        testContext.completeNow()
+    }
+
+    @Test
     fun `it returns 400 when topicArn format is invalid`(testContext: VertxTestContext) {
-        val publishResponse = publishMessageGeneralApi(topicArn = "invalid@#$%^arn", message = "Hello, SNS!")
+        val jsonBody = """{"topicArn": "invalid@#$%^arn", "message": "Hello, SNS!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(400, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -219,7 +271,8 @@ class PublishApiTest : BaseTest() {
 
     @Test
     fun `it returns 404 when topic does not exist`(testContext: VertxTestContext) {
-        val publishResponse = publishMessageGeneralApi(topicArn = "arn:aws:sns:us-east-1:123456789012:non-existent-topic", message = "Hello, SNS!")
+        val jsonBody = """{"topicArn": "arn:aws:sns:us-east-1:123456789012:non-existent-topic", "message": "Hello, SNS!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(404, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -238,7 +291,8 @@ class PublishApiTest : BaseTest() {
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = "")
+        val jsonBody = """{"topicArn": "$topicArn", "message": ""}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(400, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -257,7 +311,8 @@ class PublishApiTest : BaseTest() {
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = "Hello, SNS!", messageStructure = "xml")
+        val jsonBody = """{"topicArn": "$topicArn", "message": "Hello, SNS!", "messageStructure": "xml"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(400, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -276,12 +331,13 @@ class PublishApiTest : BaseTest() {
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        val jsonMessage = mapOf(
-            "sqs" to "SQS specific message",
-            "http" to "HTTP specific message"
-        )
+        val jsonBody = """{
+            "topicArn": "$topicArn",
+            "message": "{\"sqs\":\"SQS specific message\",\"http\":\"HTTP specific message\"}",
+            "messageStructure": "json"
+        }"""
         
-        val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = gson.toJson(jsonMessage), messageStructure = "json")
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(400, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
@@ -300,13 +356,80 @@ class PublishApiTest : BaseTest() {
         val topicData = gson.fromJson(topicResponse.text, Map::class.java)
         val topicArn = topicData["arn"] as String
         
-        val publishResponse = publishMessageGeneralApi(topicArn = topicArn, message = "invalid json string", messageStructure = "json")
+        val jsonBody = """{"topicArn": "$topicArn", "message": "invalid json string", "messageStructure": "json"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
         
         Assertions.assertEquals(400, publishResponse.statusCode)
         Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
         
         val responseData = gson.fromJson(publishResponse.text, Map::class.java)
         Assertions.assertTrue(responseData["error"].toString().contains("Invalid JSON in message when messageStructure is 'json'"))
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it can publish a message without messageAttributes field in JSON`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-no-attrs")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Test without messageAttributes field at all (not even null)
+        val jsonBody = """{"topicArn": "$topicArn", "message": "Hello without attributes field!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(200, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData.containsKey("messageId"))
+        Assertions.assertEquals(topicArn, responseData["topicArn"])
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it can publish a message without messageStructure field in JSON`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-no-structure")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Test without messageStructure field at all (not even null)
+        val jsonBody = """{"topicArn": "$topicArn", "message": "Hello without messageStructure field!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(200, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData.containsKey("messageId"))
+        Assertions.assertEquals(topicArn, responseData["topicArn"])
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it can publish a message with minimal JSON containing only required fields`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-minimal")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Test with only the minimal required fields
+        val jsonBody = """{"topicArn": "$topicArn", "message": "Minimal message!"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(200, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData.containsKey("messageId"))
+        Assertions.assertEquals(topicArn, responseData["topicArn"])
         
         testContext.completeNow()
     }
