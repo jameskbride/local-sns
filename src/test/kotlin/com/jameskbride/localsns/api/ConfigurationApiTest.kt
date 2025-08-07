@@ -55,26 +55,24 @@ class ConfigurationApiTest : BaseTest() {
         val currentConfig = gson.fromJson(currentResponse.text, ConfigurationResponse::class.java)
         val initialVersion = currentConfig.version
         
-        val topic = Topic(
-            arn = "arn:aws:sns:us-east-1:123456789012:test-topic",
-            name = "test-topic"
-        )
+        val requestJson = """{
+            "topics": [{
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+                "name": "test-topic"
+            }],
+            "subscriptions": [{
+                "topicArn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-subscription",
+                "owner": "123456789012",
+                "protocol": "http",
+                "endpoint": "http://example.com/webhook",
+                "subscriptionAttributes": {
+                    "RawMessageDelivery": "true"
+                }
+            }]
+        }"""
         
-        val subscription = Subscription(
-            topicArn = "arn:aws:sns:us-east-1:123456789012:test-topic",
-            arn = "arn:aws:sns:us-east-1:123456789012:test-subscription",
-            owner = "123456789012",
-            protocol = "http",
-            endpoint = "http://example.com/webhook",
-            subscriptionAttributes = mapOf("RawMessageDelivery" to "true")
-        )
-        
-        val request = UpdateConfigurationRequest(
-            topics = listOf(topic),
-            subscriptions = listOf(subscription)
-        )
-        
-        val response = updateConfigurationApi(request)
+        val response = updateConfigurationApiRaw(requestJson)
         
         assertEquals(200, response.statusCode)
         assertEquals("application/json", response.headers["Content-Type"])
@@ -93,17 +91,14 @@ class ConfigurationApiTest : BaseTest() {
     fun `it can partially update configuration - topics only`(testContext: VertxTestContext) {
         resetConfigurationApi()
         
-        val newTopic = Topic(
-            arn = "arn:aws:sns:us-east-1:123456789012:new-topic",
-            name = "new-topic"
-        )
+        val partialRequestJson = """{
+            "topics": [{
+                "arn": "arn:aws:sns:us-east-1:123456789012:new-topic",
+                "name": "new-topic"
+            }]
+        }"""
         
-        val partialRequest = UpdateConfigurationRequest(
-            topics = listOf(newTopic),
-            subscriptions = null
-        )
-        
-        val response = updateConfigurationApi(partialRequest)
+        val response = updateConfigurationApiRaw(partialRequestJson)
         
         assertEquals(200, response.statusCode)
         
@@ -213,26 +208,24 @@ class ConfigurationApiTest : BaseTest() {
         assertTrue(initialOutputConfig.topics.isEmpty())
         assertTrue(initialOutputConfig.subscriptions.isEmpty())
         
-        val topic = Topic(
-            arn = "arn:aws:sns:us-east-1:123456789012:test-topic",
-            name = "test-topic"
-        )
+        val requestJson = """{
+            "topics": [{
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+                "name": "test-topic"
+            }],
+            "subscriptions": [{
+                "topicArn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-subscription",
+                "owner": "123456789012",
+                "protocol": "http",
+                "endpoint": "http://example.com/webhook",
+                "subscriptionAttributes": {
+                    "RawMessageDelivery": "true"
+                }
+            }]
+        }"""
         
-        val subscription = Subscription(
-            topicArn = "arn:aws:sns:us-east-1:123456789012:test-topic",
-            arn = "arn:aws:sns:us-east-1:123456789012:test-subscription",
-            owner = "123456789012",
-            protocol = "http",
-            endpoint = "http://example.com/webhook",
-            subscriptionAttributes = mapOf("RawMessageDelivery" to "true")
-        )
-        
-        val request = UpdateConfigurationRequest(
-            topics = listOf(topic),
-            subscriptions = listOf(subscription)
-        )
-        
-        val updateResponse = updateConfigurationApi(request)
+        val updateResponse = updateConfigurationApiRaw(requestJson)
         assertEquals(200, updateResponse.statusCode)
         
         val updatedOutputFile = vertx.fileSystem().readFileBlocking(outputPath)
@@ -289,6 +282,111 @@ class ConfigurationApiTest : BaseTest() {
         testContext.completeNow()
     }
 
+    @Test
+    fun `it validates topic name is required`(testContext: VertxTestContext) {
+        resetConfigurationApi()
+        
+        val requestJson = """{
+            "topics": [{
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-topic"
+            }]
+        }"""
+        
+        val response = updateConfigurationApiRaw(requestJson)
+        
+        assertEquals(400, response.statusCode)
+        assertEquals("application/json", response.headers["Content-Type"])
+        
+        val error = gson.fromJson(response.text, ErrorResponse::class.java)
+        assertEquals("MISSING_PARAMETER", error.error)
+        assertTrue(error.message.contains("name"))
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it validates subscription required fields`(testContext: VertxTestContext) {
+        resetConfigurationApi()
+        
+        // Test missing topicArn
+        val missingTopicArn = """{
+            "subscriptions": [{
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-subscription",
+                "owner": "123456789012",
+                "protocol": "http",
+                "endpoint": "http://example.com/webhook"
+            }]
+        }"""
+        
+        val response1 = updateConfigurationApiRaw(missingTopicArn)
+        assertEquals(400, response1.statusCode)
+        val error1 = gson.fromJson(response1.text, ErrorResponse::class.java)
+        assertEquals("MISSING_PARAMETER", error1.error)
+        assertTrue(error1.message.contains("topicArn"))
+        
+        // Test missing protocol
+        val missingProtocol = """{
+            "subscriptions": [{
+                "topicArn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-subscription",
+                "owner": "123456789012",
+                "endpoint": "http://example.com/webhook"
+            }]
+        }"""
+        
+        val response2 = updateConfigurationApiRaw(missingProtocol)
+        assertEquals(400, response2.statusCode)
+        val error2 = gson.fromJson(response2.text, ErrorResponse::class.java)
+        assertEquals("MISSING_PARAMETER", error2.error)
+        assertTrue(error2.message.contains("protocol"))
+        
+        // Test missing endpoint
+        val missingEndpoint = """{
+            "subscriptions": [{
+                "topicArn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-subscription",
+                "owner": "123456789012",
+                "protocol": "http"
+            }]
+        }"""
+        
+        val response3 = updateConfigurationApiRaw(missingEndpoint)
+        assertEquals(400, response3.statusCode)
+        val error3 = gson.fromJson(response3.text, ErrorResponse::class.java)
+        assertEquals("MISSING_PARAMETER", error3.error)
+        assertTrue(error3.message.contains("endpoint"))
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it allows optional subscription attributes`(testContext: VertxTestContext) {
+        resetConfigurationApi()
+        
+        val requestJson = """{
+            "topics": [{
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+                "name": "test-topic"
+            }],
+            "subscriptions": [{
+                "topicArn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+                "arn": "arn:aws:sns:us-east-1:123456789012:test-subscription",
+                "owner": "123456789012",
+                "protocol": "http",
+                "endpoint": "http://example.com/webhook"
+            }]
+        }"""
+        
+        val response = updateConfigurationApiRaw(requestJson)
+        
+        assertEquals(200, response.statusCode)
+        val configuration = gson.fromJson(response.text, ConfigurationResponse::class.java)
+        assertEquals(1, configuration.subscriptions.size)
+        assertTrue(configuration.subscriptions[0].subscriptionAttributes.isEmpty())
+        
+        testContext.completeNow()
+    }
+
     private fun getConfigurationApi(): Response {
         return khttp.get("${getBaseUrl()}/api/config")
     }
@@ -298,6 +396,14 @@ class ConfigurationApiTest : BaseTest() {
             url = "${getBaseUrl()}/api/config",
             headers = mapOf("Content-Type" to "application/json"),
             data = gson.toJson(request)
+        )
+    }
+
+    private fun updateConfigurationApiRaw(json: String): Response {
+        return khttp.put(
+            url = "${getBaseUrl()}/api/config",
+            headers = mapOf("Content-Type" to "application/json"),
+            data = json
         )
     }
 

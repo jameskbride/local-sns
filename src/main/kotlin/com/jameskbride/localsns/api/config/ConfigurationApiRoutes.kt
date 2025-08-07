@@ -49,6 +49,15 @@ private fun parseConfigurationFromJson(jsonConfig: JsonObject): Configuration {
         topics = if (jsonConfig.has("topics")) {
             jsonConfig.getAsJsonArray("topics").map { topicElement ->
                 val topicObj = topicElement.asJsonObject
+                
+                // Validate required fields for topics
+                if (!topicObj.has("name") || topicObj.get("name").isJsonNull) {
+                    throw IllegalArgumentException("Topic name is required")
+                }
+                if (!topicObj.has("arn") || topicObj.get("arn").isJsonNull) {
+                    throw IllegalArgumentException("Topic arn is required")
+                }
+                
                 Topic(
                     arn = topicObj.get("arn").asString,
                     name = topicObj.get("name").asString
@@ -58,6 +67,24 @@ private fun parseConfigurationFromJson(jsonConfig: JsonObject): Configuration {
         subscriptions = if (jsonConfig.has("subscriptions")) {
             jsonConfig.getAsJsonArray("subscriptions").map { subElement ->
                 val subObj = subElement.asJsonObject
+                
+                // Validate required fields for subscriptions
+                if (!subObj.has("topicArn") || subObj.get("topicArn").isJsonNull) {
+                    throw IllegalArgumentException("Subscription topicArn is required")
+                }
+                if (!subObj.has("arn") || subObj.get("arn").isJsonNull) {
+                    throw IllegalArgumentException("Subscription arn is required")
+                }
+                if (!subObj.has("owner") || subObj.get("owner").isJsonNull) {
+                    throw IllegalArgumentException("Subscription owner is required")
+                }
+                if (!subObj.has("protocol") || subObj.get("protocol").isJsonNull) {
+                    throw IllegalArgumentException("Subscription protocol is required")
+                }
+                if (!subObj.has("endpoint") || subObj.get("endpoint").isJsonNull) {
+                    throw IllegalArgumentException("Subscription endpoint is required")
+                }
+                
                 Subscription(
                     topicArn = subObj.get("topicArn").asString,
                     arn = subObj.get("arn").asString,
@@ -118,8 +145,8 @@ val updateConfigurationApiRoute: (RoutingContext) -> Unit = route@{ ctx: Routing
             return@route
         }
 
-        val request = try {
-            gson.fromJson(body, UpdateConfigurationRequest::class.java)
+        val jsonConfig = try {
+            gson.fromJson(body, JsonObject::class.java)
         } catch (ex: JsonSyntaxException) {
             sendJsonError(ctx, "INVALID_JSON", "Invalid JSON in request body", 400)
             return@route
@@ -135,8 +162,8 @@ val updateConfigurationApiRoute: (RoutingContext) -> Unit = route@{ ctx: Routing
 
         val currentConfiguration = try {
             val dbFile = vertx.fileSystem().readFileBlocking(dbPath)
-            val jsonConfig = toJsonConfig(dbFile)
-            parseConfigurationFromJson(jsonConfig)
+            val currentJsonConfig = toJsonConfig(dbFile)
+            parseConfigurationFromJson(currentJsonConfig)
         } catch (e: Exception) {
             Configuration(
                 version = 1,
@@ -144,12 +171,18 @@ val updateConfigurationApiRoute: (RoutingContext) -> Unit = route@{ ctx: Routing
             )
         }
         
-        val updatedConfiguration = Configuration(
-            version = currentConfiguration.version,
-            timestamp = System.currentTimeMillis(),
-            topics = request.topics ?: currentConfiguration.topics,
-            subscriptions = request.subscriptions ?: currentConfiguration.subscriptions
-        )
+        val updatedConfiguration = try {
+            val requestConfig = parseConfigurationFromJson(jsonConfig)
+            Configuration(
+                version = currentConfiguration.version,
+                timestamp = System.currentTimeMillis(),
+                topics = if (jsonConfig.has("topics")) requestConfig.topics else currentConfiguration.topics,
+                subscriptions = if (jsonConfig.has("subscriptions")) requestConfig.subscriptions else currentConfiguration.subscriptions
+            )
+        } catch (ex: IllegalArgumentException) {
+            sendJsonError(ctx, "MISSING_PARAMETER", ex.message ?: "Required parameter missing", 400)
+            return@route
+        }
         
         val topicsMap = getTopicsMap(vertx)!!
         val subscriptionsMap = getSubscriptionsMap(vertx)!!
