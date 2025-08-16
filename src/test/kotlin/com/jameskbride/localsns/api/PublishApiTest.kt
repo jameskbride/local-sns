@@ -566,4 +566,118 @@ class PublishApiTest : BaseTest() {
         
         testContext.completeNow()
     }
+
+    @Test
+    fun `it can publish a JSON structured message with nested JSON objects as protocol values`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-nested-json-objects")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Test with messageStructure=json and JSON objects as protocol values (the original issue)
+        val jsonBody = """{
+            "topicArn": "$topicArn",
+            "messageStructure": "json",
+            "message": {
+                "default": {
+                    "some": "value",
+                    "another": {
+                        "object": "another value"
+                    }
+                },
+                "sqs": {
+                    "some": "value",
+                    "another": {
+                        "object": "another value"
+                    }
+                }
+            }
+        }"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(200, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData.containsKey("messageId"))
+        Assertions.assertEquals(topicArn, responseData["topicArn"])
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it can publish a JSON structured message with mixed string and object protocol values`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-mixed-protocol-values")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Test with mixed string and object values for different protocols
+        val jsonBody = """{
+            "topicArn": "$topicArn",
+            "messageStructure": "json",
+            "message": {
+                "default": "Simple string message",
+                "sqs": {
+                    "messageType": "notification",
+                    "data": {
+                        "userId": 123,
+                        "action": "login"
+                    }
+                },
+                "http": "Another simple string",
+                "email": {
+                    "subject": "Important Notification",
+                    "body": "Please check your account"
+                }
+            }
+        }"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(200, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData.containsKey("messageId"))
+        Assertions.assertEquals(topicArn, responseData["topicArn"])
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it can publish a JSON structured message with array values in protocols`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-array-protocol-values")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Test with JSON arrays as protocol values
+        val jsonBody = """{
+            "topicArn": "$topicArn",
+            "messageStructure": "json",
+            "message": {
+                "default": ["item1", "item2", "item3"],
+                "sqs": {
+                    "items": ["a", "b", "c"],
+                    "metadata": {
+                        "count": 3,
+                        "type": "list"
+                    }
+                }
+            }
+        }"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(200, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData.containsKey("messageId"))
+        Assertions.assertEquals(topicArn, responseData["topicArn"])
+        
+        testContext.completeNow()
+    }
 }

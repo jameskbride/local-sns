@@ -123,13 +123,8 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
 
         val messageAttributes = request.messageAttributes ?: emptyMap()
         
-        val publishRequest = PublishRequest(
-            message = messageAsString,
-            messageAttributes = messageAttributes,
-            topicArn = topicArn
-        )
-
-        if (request.messageStructure == "json") {
+        // Transform message for JSON structure if needed
+        val finalMessage = if (request.messageStructure == "json") {
             try {
                 val messages = gson.fromJson(messageAsString, JsonObject::class.java)
                 if (!messages.has("default")) {
@@ -139,6 +134,18 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
                         .end(gson.toJson(mapOf("error" to "Attribute 'default' is required when messageStructure is 'json'")))
                     return@lambda
                 }
+                
+                // Transform each protocol value to a JSON string if it's not already a string
+                val transformedMessages = JsonObject()
+                for ((protocol, value) in messages.entrySet()) {
+                    val stringValue = if (value.isJsonPrimitive && value.asJsonPrimitive.isString) {
+                        value.asString
+                    } else {
+                        gson.toJson(value)
+                    }
+                    transformedMessages.addProperty(protocol, stringValue)
+                }
+                gson.toJson(transformedMessages)
             } catch (e: JsonSyntaxException) {
                 ctx.response()
                     .setStatusCode(400)
@@ -146,7 +153,15 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
                     .end(gson.toJson(mapOf("error" to "Invalid JSON in message when messageStructure is 'json'")))
                 return@lambda
             }
+        } else {
+            messageAsString
         }
+        
+        val publishRequest = PublishRequest(
+            message = finalMessage,
+            messageAttributes = messageAttributes,
+            topicArn = topicArn
+        )
 
         val camelContext = DefaultCamelContext()
         camelContext.start()
