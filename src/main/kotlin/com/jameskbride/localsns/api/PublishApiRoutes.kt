@@ -2,6 +2,7 @@ package com.jameskbride.localsns.api
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSyntaxException
 import com.jameskbride.localsns.getTopicsMap
@@ -25,7 +26,7 @@ private val gson = GsonBuilder().disableHtmlEscaping().create()
 data class PublishApiRequest(
     val topicArn: String? = null,
     val targetArn: String? = null,
-    val message: String,
+    val message: JsonElement,
     val messageStructure: String? = null,
     val messageAttributes: Map<String, MessageAttribute>? = null
 )
@@ -95,25 +96,42 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             return@lambda
         }
 
-        if (request.message.isBlank()) {
+        if (request.message.isJsonNull) {
             ctx.response()
                 .setStatusCode(400)
                 .putHeader("Content-Type", "application/json")
-                .end(gson.toJson(mapOf("error" to "Message cannot be empty")))
+                .end(gson.toJson(mapOf("error" to "Message cannot be null")))
             return@lambda
+        }
+
+        // Convert message to string format for processing
+        val messageAsString = if (request.message.isJsonPrimitive && request.message.asJsonPrimitive.isString) {
+            // It's already a string
+            val stringValue = request.message.asString
+            if (stringValue.isBlank()) {
+                ctx.response()
+                    .setStatusCode(400)
+                    .putHeader("Content-Type", "application/json")
+                    .end(gson.toJson(mapOf("error" to "Message cannot be empty")))
+                return@lambda
+            }
+            stringValue
+        } else {
+            // It's a JSON object/array, convert to JSON string
+            gson.toJson(request.message)
         }
 
         val messageAttributes = request.messageAttributes ?: emptyMap()
         
         val publishRequest = PublishRequest(
-            message = request.message,
+            message = messageAsString,
             messageAttributes = messageAttributes,
             topicArn = topicArn
         )
 
         if (request.messageStructure == "json") {
             try {
-                val messages = gson.fromJson(request.message, JsonObject::class.java)
+                val messages = gson.fromJson(messageAsString, JsonObject::class.java)
                 if (!messages.has("default")) {
                     ctx.response()
                         .setStatusCode(400)

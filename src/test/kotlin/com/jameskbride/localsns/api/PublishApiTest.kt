@@ -433,4 +433,95 @@ class PublishApiTest : BaseTest() {
         
         testContext.completeNow()
     }
+
+    @Test
+    fun `it can publish a message with a JSON object as message`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-json-object")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Test with a JSON object as the message value instead of a string
+        val jsonBody = """{
+            "topicArn": "$topicArn",
+            "message": {
+                "type": "notification",
+                "title": "Test Notification", 
+                "body": "This is a test message",
+                "metadata": {
+                    "timestamp": "2025-01-01T00:00:00Z",
+                    "priority": "high"
+                }
+            }
+        }"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(200, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData.containsKey("messageId"))
+        Assertions.assertEquals(topicArn, responseData["topicArn"])
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it can publish a message with a JSON array as message`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-json-array")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Test with a JSON array as the message value
+        val jsonBody = """{
+            "topicArn": "$topicArn",
+            "message": [
+                {"name": "John", "age": 30},
+                {"name": "Jane", "age": 25}
+            ]
+        }"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(200, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData.containsKey("messageId"))
+        Assertions.assertEquals(topicArn, responseData["topicArn"])
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it can publish a JSON structured message with JSON object as message`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-structured-json-object")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Test with messageStructure=json and a JSON object containing default key
+        val jsonBody = """{
+            "topicArn": "$topicArn",
+            "messageStructure": "json",
+            "message": {
+                "default": "Default message for all protocols",
+                "sqs": "SQS specific message",
+                "http": "HTTP specific message"
+            }
+        }"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(200, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData.containsKey("messageId"))
+        Assertions.assertEquals(topicArn, responseData["topicArn"])
+        
+        testContext.completeNow()
+    }
 }
