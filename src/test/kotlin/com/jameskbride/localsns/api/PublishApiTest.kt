@@ -524,4 +524,46 @@ class PublishApiTest : BaseTest() {
         
         testContext.completeNow()
     }
+
+    @Test
+    fun `it returns 400 when message field is missing`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-missing-message")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Request without message field
+        val jsonBody = """{"topicArn": "$topicArn"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(400, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData["error"].toString().contains("Message is required"))
+        
+        testContext.completeNow()
+    }
+
+    @Test
+    fun `it returns 400 when message field is explicitly null`(testContext: VertxTestContext) {
+        val topicResponse = createTopicApi("test-topic-null-message")
+        Assertions.assertEquals(201, topicResponse.statusCode)
+        
+        val topicData = gson.fromJson(topicResponse.text, Map::class.java)
+        val topicArn = topicData["arn"] as String
+        
+        // Request with no message field
+        val jsonBody = """{"topicArn": "$topicArn"}"""
+        val publishResponse = publishMessageGeneralApi(jsonBody)
+        
+        Assertions.assertEquals(400, publishResponse.statusCode)
+        Assertions.assertEquals("application/json", publishResponse.headers["Content-Type"])
+        
+        val responseData = gson.fromJson(publishResponse.text, Map::class.java)
+        Assertions.assertTrue(responseData["error"].toString().contains("Message is required"))
+        
+        testContext.completeNow()
+    }
 }

@@ -26,7 +26,7 @@ private val gson = GsonBuilder().disableHtmlEscaping().create()
 data class PublishApiRequest(
     val topicArn: String? = null,
     val targetArn: String? = null,
-    val message: JsonElement,
+    val message: JsonElement? = null,
     val messageStructure: String? = null,
     val messageAttributes: Map<String, MessageAttribute>? = null
 )
@@ -96,11 +96,11 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
             return@lambda
         }
 
-        if (request.message.isJsonNull) {
+        if (request.message == null || request.message.isJsonNull) {
             ctx.response()
                 .setStatusCode(400)
                 .putHeader("Content-Type", "application/json")
-                .end(gson.toJson(mapOf("error" to "Message cannot be null")))
+                .end(gson.toJson(mapOf("error" to "Message is required")))
             return@lambda
         }
 
