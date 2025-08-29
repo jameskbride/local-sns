@@ -1,4 +1,4 @@
-FROM eclipse-temurin:11-jre-alpine
+FROM amazoncorretto:11.0.21-alpine
 
 EXPOSE 9911
 
