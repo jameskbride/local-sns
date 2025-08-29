@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.0] - 2025-08-29
+### Added
+- JSON REST API for CRUD operations on topics, subscriptions, and configuration [#33](https://github.com/jameskbride/local-sns/pull/33)
+- JSON message publishing endpoint with support for JSON objects [#33](https://github.com/jameskbride/local-sns/pull/33)
+
 ## [1.3.0] - 2025-04-19
 ### Added
 - `null` MessageBody filtering now works [#31](https://github.com/jameskbride/local-sns/pull/31)
