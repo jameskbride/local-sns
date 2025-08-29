@@ -1,5 +1,4 @@
-# See https://github.com/s12v/sns/issues/60
-FROM amazoncorretto:11.0.21-alpine
+FROM eclipse-temurin:11-jre-alpine
 
 EXPOSE 9911
 

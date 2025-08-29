@@ -52,6 +52,7 @@ dependencies {
   implementation("com.typesafe:config:1.4.3")
   implementation("org.apache.logging.log4j:log4j-core:2.22.1")
   implementation("org.apache.logging.log4j:log4j-api:2.22.1")
+  implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.22.1")
   implementation("com.google.code.gson:gson:2.10.1")
 
   testImplementation("io.vertx:vertx-junit5:$vertxVersion")
