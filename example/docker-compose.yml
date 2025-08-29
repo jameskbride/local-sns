@@ -10,6 +10,9 @@ services:
     - ./config/output:/tmp/output
     environment:
       - DB_OUTPUT_PATH=/tmp/output/db.json
+      # Uncomment and set these when using AWS integrations (SQS, Lambda, etc.)
+      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     depends_on:
     - sqs
   sqs:
