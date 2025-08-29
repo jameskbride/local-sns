@@ -11,7 +11,7 @@ assemble:
 	./gradlew clean assemble
 
 build-image: assemble
-	docker build --build-arg JAR=$(JAR) --tag jameskbride/local-sns:$(TAG) .
+	docker build --build-arg JAR=$(JAR) --tag jameskbride/local-sns:$(TAG) . --load
 
 build-image-minimal: assemble
 	docker build --build-arg JAR=$(JAR) --build-arg INCLUDE_AWS_CLI=false --tag jameskbride/local-sns:$(TAG)-minimal --load .
