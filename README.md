@@ -52,6 +52,8 @@ Configuration can be set via environment variables:
 - `HTTP_PORT` - tcp port, default: `9911`
 - `AWS_DEFAULT_REGION` - AWS region, default: `us-east-1`
 - `AWS_ACCOUNT_ID` - AWS Account ID, default: `123456789012`
+- `AWS_ACCESS_KEY_ID` - AWS Access Key ID, default: `foo`
+- `AWS_SECRET_ACCESS_KEY` - AWS Secret Access Key, default: `bar`
 
 ## Supported integrations
 
