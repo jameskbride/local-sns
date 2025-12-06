@@ -26,8 +26,8 @@ open class BaseTest {
     companion object {
         fun getBaseUrl(): String {
             val config = ConfigFactory.load()
-            val httpInterface = config.getString("http.interface")
-            val httpPortEnv = config.getString("http.port")
+            val httpInterface = System.getenv("HTTP_INTERFACE") ?: config.getString("http.interface")
+            val httpPortEnv = System.getenv("HTTP_PORT") ?: config.getString("http.port")
             return "http://$httpInterface:$httpPortEnv/"
         }
     }
