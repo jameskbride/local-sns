@@ -282,7 +282,7 @@ private fun createSnsMessage(
         message,
         UUID.randomUUID().toString(),
         "SIGNATURE",
-        1,
+        "1",
         "http://signing-cert-url",
         null,
         formattedTimestamp,
