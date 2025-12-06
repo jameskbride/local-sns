@@ -129,6 +129,11 @@ You can also execute an `aws sns <command> --endpoint-url <local-sns url>` comma
 This command will run the unit and integration tests all together. The integration tests will create in-memory web servers that
 run on ports 9922 and 9933, as well as starting elasticmq on port 9234.
 
+If you're on an M1 Mac you may run into DNS resolver issues when running the tests. If so you can set the `HTTP_INTERFACE` value and everything should just work:
+```shell
+HTTP_INTERFACE=localhost ./gradlew test
+```
+
 ## Thanks
 Big thanks to Sergey Novikov ([@s12v](https://github.com/s12v)) for all the awesome work he did on https://github.com/s12v/sns. This project was largely inspired by Sergey's work,
 and takes a lot of design ideas from the original sns project. 
