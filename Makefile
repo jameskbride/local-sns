@@ -13,8 +13,7 @@ build:
 assemble:
 	./gradlew clean assemble
 
-build-image:
-	./gradlew clean assemble
+build-image: assemble
 	docker build --build-arg JAR=$(JAR) --tag jameskbride/local-sns:$(TAG) .
 
 publish: assemble
