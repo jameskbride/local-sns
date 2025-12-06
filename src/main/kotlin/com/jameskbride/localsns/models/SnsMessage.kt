@@ -6,7 +6,7 @@ data class SnsMessage(
     @SerializedName("Message") val message:String,
     @SerializedName("MessageId") val messageId:String,
     @SerializedName("Signature") val signature:String,
-    @SerializedName("SignatureVersion") val signatureVersion: Int,
+    @SerializedName("SignatureVersion") val signatureVersion: String,
     @SerializedName("SigningCertUrl") val signingCertUrl:String,
     @SerializedName("Subject") val subject: String? = null,
     @SerializedName("Timestamp") val timestamp: String,

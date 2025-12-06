@@ -2,6 +2,7 @@ package com.jameskbride.localsns
 
 import com.google.gson.Gson
 import com.google.gson.JsonArray
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
@@ -16,6 +17,7 @@ import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import org.elasticmq.server.ElasticMQServer
 import org.elasticmq.server.config.ElasticMQServerConfig
+import org.json.JSONString
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -625,6 +627,7 @@ class PublishRouteIntegrationTest: BaseTest() {
                 val gson = Gson()
                 val requestBody = body.toString("UTF-8")
                 val jsonBody = gson.fromJson(requestBody, JsonObject::class.java)
+                assertTrue(jsonBody.get("SignatureVersion").isJsonPrimitive && jsonBody.get("SignatureVersion").asJsonPrimitive.isString)
                 assertEquals(message, jsonBody.get("Message").asString)
                 testContext.completeNow()
             }
