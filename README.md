@@ -52,6 +52,7 @@ Configuration can be set via environment variables:
 - `HTTP_PORT` - tcp port, default: `9911`
 - `AWS_DEFAULT_REGION` - AWS region, default: `us-east-1`
 - `AWS_ACCOUNT_ID` - AWS Account ID, default: `123456789012`
+- `LOCAL_SNS_HOSTNAME` - Hostname to use for URL callbacks
 
 ## Supported integrations
 

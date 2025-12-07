@@ -65,7 +65,7 @@ class MainVerticle : AbstractVerticle() {
     val httpInterface = getHttpInterface(config)
     val port = getPort(config)
 
-    val hostname = InetAddress.getLocalHost().hostName
+    val hostname = System.getenv("LOCAL_SNS_HOSTNAME") ?: httpInterface
     val baseUrl = "http://$hostname:$port"
     val cachedConfig = getCachedConfig(vertx)
     cachedConfig[BASE_URL] = baseUrl
