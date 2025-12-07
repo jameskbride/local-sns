@@ -2,6 +2,7 @@ package com.jameskbride.localsns.topics
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.jameskbride.localsns.BASE_URL
 import com.jameskbride.localsns.getSubscriptionsMap
 import com.jameskbride.localsns.models.*
 import com.jameskbride.localsns.models.SubscriptionAttribute.Companion.FILTER_POLICY
@@ -10,6 +11,7 @@ import io.vertx.core.Vertx
 import org.apache.camel.ProducerTemplate
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import java.net.URLEncoder
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -36,6 +38,7 @@ fun publishJsonStructure(
     publishRequest: PublishRequest,
     producerTemplate: ProducerTemplate,
     vertx: Vertx,
+    cachedConfig: Map<String, String>
 ) {
     vertx.executeBlocking<Any>({ ->
         try {
@@ -54,7 +57,8 @@ fun publishJsonStructure(
                     subscription,
                     messageToPublish,
                     publishRequest.messageAttributes,
-                    producerTemplate
+                    producerTemplate,
+                    cachedConfig
                 )
                     ?.exceptionally { logger.error("Error publishing to subscription: ${subscription.arn}", it) }
             }
@@ -74,13 +78,14 @@ fun publishBasicMessageToTopic(
     publishRequest: PublishRequest,
     producerTemplate: ProducerTemplate,
     vertx: Vertx,
+    cachedConfig: Map<String, String>
 ) {
     vertx.executeBlocking({ ->
         try {
             val subscriptions = getTopicSubscriptions(publishRequest.topicArn, vertx)
             logger.info("Publishing to topic: ${publishRequest.topicArn}")
             subscriptions.map { subscription ->
-                publishToSubscription(subscription, publishRequest.message, publishRequest.messageAttributes, producerTemplate)
+                publishToSubscription(subscription, publishRequest.message, publishRequest.messageAttributes, producerTemplate, cachedConfig)
                     ?.exceptionally { logger.error("An error occurred when publishing to: ${subscription.endpoint}", it) }
             }
             Future.succeededFuture<Any>()
@@ -99,7 +104,8 @@ private fun publishToSubscription(
     subscription: Subscription,
     message: String,
     messageAttributes: Map<String, MessageAttribute> = mapOf(),
-    producer: ProducerTemplate
+    producer: ProducerTemplate,
+    cachedConfig: Map<String, String>
 ): CompletableFuture<Any>? {
     val matchesFilterPolicy = matchesFilterPolicy(subscription, message, messageAttributes)
 
@@ -118,17 +124,17 @@ private fun publishToSubscription(
     return when (subscription.protocol) {
         "lambda" -> {
             logger.info("Publishing to Lambda subscription: ${subscription.arn}")
-            publishToLambda(subscription, message, headers, producer)
+            publishToLambda(subscription, message, headers, producer, cachedConfig)
         }
 
         "http" -> {
             logger.info("Publishing to HTTP subscription: ${subscription.arn}")
-            publishToHttp(subscription, message, headers, producer)
+            publishToHttp(subscription, message, headers, producer, cachedConfig)
         }
 
         "https" -> {
             logger.info("Publishing to HTTPS subscription: ${subscription.arn}")
-            publishToHttp(subscription, message, headers, producer)
+            publishToHttp(subscription, message, headers, producer, cachedConfig)
         }
 
         "slack" -> {
@@ -138,12 +144,12 @@ private fun publishToSubscription(
 
         "sqs" -> {
             logger.info("Publishing to SQS subscription: ${subscription.arn}")
-            publishToSqs(subscription, message, headers, producer)
+            publishToSqs(subscription, message, headers, producer, cachedConfig)
         }
 
         else -> {
             logger.info("Publishing to subscription: ${subscription.arn}")
-            publishAllowingRawMessage(subscription, message, headers, producer)
+            publishAllowingRawMessage(subscription, message, headers, producer, cachedConfig)
         }
     }
 }
@@ -187,22 +193,24 @@ private fun publishToSqs(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate
+    producer: ProducerTemplate,
+    cachedConfig: Map<String, String>
 ): CompletableFuture<Any>? {
-    return publishAllowingRawMessage(subscription, message, headers, producer)
+    return publishAllowingRawMessage(subscription, message, headers, producer, cachedConfig)
 }
 
 private fun publishAllowingRawMessage(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate
+    producer: ProducerTemplate,
+    cachedConfig: Map<String, String>
 ): CompletableFuture<Any>? {
     val messageToPublish = if (subscription.isRawMessageDelivery()) {
         message
     } else {
         val timestamp = LocalDateTime.now()
-        val snsMessage = createSnsMessage(subscription, message, timestamp)
+        val snsMessage = createSnsMessage(subscription, message, timestamp, cachedConfig)
         val gson = Gson()
         gson.toJson(snsMessage)
     }
@@ -213,10 +221,11 @@ private fun publishToLambda(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate
+    producer: ProducerTemplate,
+    cachedConfig: Map<String, String>
 ): CompletableFuture<Any>? {
     val timestamp = LocalDateTime.now()
-    val snsMessage = createSnsMessage(subscription, message, timestamp)
+    val snsMessage = createSnsMessage(subscription, message, timestamp, cachedConfig)
     val gson = Gson()
     val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
     val event = LambdaEvent(listOf(record))
@@ -233,10 +242,11 @@ private fun publishToHttp(
     subscription: Subscription,
     message: String,
     headers: Map<String, String>,
-    producer: ProducerTemplate
+    producer: ProducerTemplate,
+    cachedConfig: Map<String, String>
 ): CompletableFuture<Any>? {
     val timestamp = LocalDateTime.now()
-    val snsMessage = createSnsMessage(subscription, message, timestamp)
+    val snsMessage = createSnsMessage(subscription, message, timestamp, cachedConfig)
     val gson = Gson()
     val httpHeaders = if (subscription.isRawMessageDelivery()) {
         headers + mapOf("x-amz-sns-rawdelivery" to "true")
@@ -275,10 +285,13 @@ private fun publishToCamel(
 private fun createSnsMessage(
     subscription: Subscription,
     message: String,
-    timestamp: LocalDateTime?
-): SnsMessage {
+    timestamp: LocalDateTime?,
+    cachedConfig: Map<String, String>
+): NotificationSnsMessage {
     val formattedTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(timestamp)
-    return SnsMessage(
+    val baseUrl = cachedConfig.get(BASE_URL)
+    val unsubscribeUrl = "${baseUrl}?Action=Unsubscribe&SubscriptionArn${subscription.arn}"
+    return NotificationSnsMessage(
         message,
         UUID.randomUUID().toString(),
         "SIGNATURE",
@@ -287,5 +300,7 @@ private fun createSnsMessage(
         null,
         formattedTimestamp,
         subscription.topicArn,
+        "Notification",
+        unsubscribeUrl,
     )
 }

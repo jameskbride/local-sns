@@ -64,6 +64,7 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         return@route
     }
 
+    val cachedConfig = getCachedConfig(vertx).toMap()
     val camelContext = DefaultCamelContext()
     camelContext.start()
     val gson = Gson()
@@ -84,7 +85,8 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
                     publishJsonStructure(
                         publishRequest,
                         camelContext.createProducerTemplate(),
-                        vertx
+                        vertx,
+                        cachedConfig,
                     )
                 }
                 else -> {
@@ -92,6 +94,7 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
                         publishRequest,
                         camelContext.createProducerTemplate(),
                         vertx,
+                        cachedConfig,
                     )
                 }
             }
@@ -100,6 +103,7 @@ val publishBatchRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
                 publishRequest,
                 camelContext.createProducerTemplate(),
                 vertx,
+                cachedConfig,
             )
         }
     }

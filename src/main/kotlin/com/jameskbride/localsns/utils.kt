@@ -21,6 +21,7 @@ const val EMPTY_BATCH_REQUEST = "EmptyBatchRequest"
 const val TOO_MANY_ENTRIES_IN_BATCH_REQUEST = "TooManyEntriesInBatchRequest"
 const val BATCH_ENTRY_IDS_NOT_DISTINCT = "BatchEntryIdNotDistinct"
 const val INVALID_BATCH_ENTRY_ID = "InvalidBatchEntryId"
+const val BASE_URL = "baseUrl"
 
 fun getDbPath(config: Config): String? =
     System.getenv("DB_PATH") ?: config.getString("db.path")
@@ -64,6 +65,10 @@ fun getTopicsMap(vertx: Vertx): LocalMap<String, Topic>? =
 
 fun getSubscriptionsMap(vertx: Vertx): LocalMap<String, List<Subscription>>? =
     vertx.sharedData().getLocalMap("subscriptions")
+
+fun getCachedConfig(vertx: Vertx): LocalMap<String, String> {
+  return vertx.sharedData().getLocalMap("cachedConfig")
+}
 
 fun logAndReturnError(ctx: RoutingContext, logger: Logger, errorMessage: String, code: String = INVALID_PARAMETER, statusCode: Int = 400) {
     logger.error(errorMessage)
