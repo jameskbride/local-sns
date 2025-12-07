@@ -31,8 +31,8 @@ val unsubscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         .firstOrNull { it.arn == subscriptionArn }
 
     if (subscription == null) {
-        val errorMessage = "Subscription not found: $subscriptionArn"
-        logAndReturnError(ctx, logger, errorMessage, NOT_FOUND, 404)
+        //Idempotency for multiple unsubscribes for the same subscription arn
+        renderSuccess(ctx)
         return@route
     }
 
@@ -41,11 +41,15 @@ val unsubscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         .filter { it.arn != subscriptionArn }
     subscriptions[subscription.topicArn] = updatedSubscriptions
     vertx.eventBus().publish("configChange", "configChange")
-    ctx.request().response()
-        .putHeader("context-type", "text/xml")
-        .setStatusCode(200)
-        .end(
-            """
+    renderSuccess(ctx)
+}
+
+private fun renderSuccess(ctx: RoutingContext) {
+  ctx.request().response()
+    .putHeader("context-type", "text/xml")
+    .setStatusCode(200)
+    .end(
+      """
               <UnsubscribeResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/">
                 <ResponseMetadata>
                   <RequestId>
@@ -54,5 +58,5 @@ val unsubscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
                 </ResponseMetadata>
               </UnsubscribeResponse>
             """.trimIndent()
-        )
+    )
 }

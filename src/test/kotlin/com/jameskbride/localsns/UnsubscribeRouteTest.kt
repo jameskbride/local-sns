@@ -28,10 +28,10 @@ class UnsubscribeRouteTest: BaseTest() {
     }
 
     @Test
-    fun `it returns an error when subscription arn does not exist`(testContext: VertxTestContext) {
+    fun `it returns success when subscription arn does not exist for idempotency`(testContext: VertxTestContext) {
         val response = unsubscribe(createValidArn("queue1"))
 
-        Assertions.assertEquals(404, response.statusCode)
+        Assertions.assertEquals(200, response.statusCode)
 
         testContext.completeNow()
     }
