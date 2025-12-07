@@ -1,7 +1,7 @@
 package com.jameskbride.localsns.routes.subscriptions
 
-import com.jameskbride.localsns.NOT_FOUND
 import com.jameskbride.localsns.getFormAttribute
+import com.jameskbride.localsns.getRequestParam
 import com.jameskbride.localsns.getSubscriptionsMap
 import com.jameskbride.localsns.logAndReturnError
 import com.jameskbride.localsns.models.Subscription
@@ -15,7 +15,7 @@ val unsubscribeRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
     val logger: Logger = LogManager.getLogger("unsubscribeRoute")
     val vertx = ctx.vertx()
     val subscriptions = getSubscriptionsMap(vertx)
-    val subscriptionArn = getFormAttribute(ctx, "SubscriptionArn")
+    val subscriptionArn = getFormAttribute(ctx, "SubscriptionArn") ?: getRequestParam(ctx, "SubscriptionArn")
     if (subscriptionArn == null) {
         logAndReturnError(ctx, logger, "SubscriptionArn is missing")
         return@route

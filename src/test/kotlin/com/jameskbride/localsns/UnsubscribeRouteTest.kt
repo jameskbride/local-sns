@@ -73,6 +73,19 @@ class UnsubscribeRouteTest: BaseTest() {
     }
 
     @Test
+    fun `it allow request params to be used successfully`(testContext: VertxTestContext) {
+      val topic = createTopicModel("topic1")
+      val subscriptionResponse = subscribe(topic.arn, createCamelSqsEndpoint("endpoint"), "sqs")
+      val subscriptionArn = getSubscriptionArnFromResponse(subscriptionResponse)
+
+      val response = unsubscribe(subscriptionArn, useFormData = false)
+
+      Assertions.assertEquals(200, response.statusCode)
+
+      testContext.completeNow()
+    }
+
+    @Test
     fun `it indicates a db change`(vertx: Vertx, testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         val subscriptionResponse = subscribe(topic.arn, createCamelSqsEndpoint("endpoint"), "sqs")

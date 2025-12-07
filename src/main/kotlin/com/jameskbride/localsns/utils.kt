@@ -91,6 +91,9 @@ fun getFormAttribute(
     attribute: String
 ): String? = ctx.request().getFormAttribute(attribute)
 
+fun getRequestParam(ctx: RoutingContext, attribute: String): String? =
+  ctx.request().getParam(attribute)
+
 fun configureObjectMappers() {
     val mapper = DatabindCodec.mapper()
     mapper.registerKotlinModule()
