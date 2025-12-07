@@ -1,6 +1,7 @@
 package com.jameskbride.localsns.topics
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.jameskbride.localsns.BASE_URL
 import com.jameskbride.localsns.getSubscriptionsMap
@@ -44,7 +45,7 @@ fun publishJsonStructure(
         try {
             logger.info("Publishing message to topic with json structure {}", publishRequest.topicArn)
             val subscriptions = getTopicSubscriptions(publishRequest.topicArn, vertx)
-            val gson = Gson()
+            val gson = GsonBuilder().disableHtmlEscaping().create()
             val messages = gson.fromJson(publishRequest.message, JsonObject::class.java)
             subscriptions.map { subscription ->
                 val messageToPublish: String = if (messages.has(subscription.protocol)) {
@@ -183,7 +184,7 @@ private fun matchesMessageAttributesFilterPolicy(
 
 private fun matchesMessageBodyFilterPolicy(subscription: Subscription, message:String): Boolean {
     val filterPolicySubscriptionAttribute = subscription.subscriptionAttributes[FILTER_POLICY]
-    val gson = Gson()
+    val gson = GsonBuilder().disableHtmlEscaping().create()
     val messageJson = gson.fromJson(message, JsonObject::class.java)
     val matched = filterPolicySubscriptionAttribute?.let { MessageBodyFilterPolicy(it).matches(messageJson) } ?: true
     return matched
@@ -211,7 +212,7 @@ private fun publishAllowingRawMessage(
     } else {
         val timestamp = LocalDateTime.now()
         val snsMessage = createSnsMessage(subscription, message, timestamp, cachedConfig)
-        val gson = Gson()
+        val gson = GsonBuilder().disableHtmlEscaping().create()
         gson.toJson(snsMessage)
     }
     return publishToCamel(subscription.decodedEndpointUrl(), messageToPublish, headers, producer)
@@ -226,7 +227,7 @@ private fun publishToLambda(
 ): CompletableFuture<Any>? {
     val timestamp = LocalDateTime.now()
     val snsMessage = createSnsMessage(subscription, message, timestamp, cachedConfig)
-    val gson = Gson()
+    val gson = GsonBuilder().disableHtmlEscaping().create()
     val record = LambdaRecord("aws:sns", subscription.arn, 1.0, snsMessage)
     val event = LambdaEvent(listOf(record))
     val messageToPublish = gson.toJson(event)
@@ -247,7 +248,7 @@ private fun publishToHttp(
 ): CompletableFuture<Any>? {
     val timestamp = LocalDateTime.now()
     val snsMessage = createSnsMessage(subscription, message, timestamp, cachedConfig)
-    val gson = Gson()
+    val gson = GsonBuilder().disableHtmlEscaping().create()
     val httpHeaders = if (subscription.isRawMessageDelivery()) {
         headers + mapOf("x-amz-sns-rawdelivery" to "true")
     } else {
@@ -290,7 +291,7 @@ private fun createSnsMessage(
 ): NotificationSnsMessage {
     val formattedTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(timestamp)
     val baseUrl = cachedConfig.get(BASE_URL)
-    val unsubscribeUrl = "${baseUrl}?Action=Unsubscribe&SubscriptionArn${subscription.arn}"
+    val unsubscribeUrl = "${baseUrl}?Action=Unsubscribe&SubscriptionArn=${subscription.arn}"
     return NotificationSnsMessage(
         message,
         UUID.randomUUID().toString(),
