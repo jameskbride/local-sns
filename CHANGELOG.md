@@ -1,4 +1,14 @@
 # Changelog
+## [1.5.0] - 2025-12-08
+### Added
+* Implement UnsubscribeURL by @jameskbride in https://github.com/jameskbride/local-sns/pull/41
+
+### Changed
+* Test-Only: Fix MacOS DNS Failures by @jameskbride in https://github.com/jameskbride/local-sns/pull/38
+* Makefile fixes by @jameskbride in https://github.com/jameskbride/local-sns/pull/39
+* Make SignatureVersion a String by @jameskbride in https://github.com/jameskbride/local-sns/pull/40
+
+**Full Changelog**: https://github.com/jameskbride/local-sns/compare/v1.4.0...v1.5.0
 
 ## [1.4.0] - 2025-08-29
 ### Added
