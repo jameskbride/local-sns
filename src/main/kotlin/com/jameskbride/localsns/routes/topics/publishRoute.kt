@@ -3,6 +3,7 @@ package com.jameskbride.localsns.routes.topics
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.jameskbride.localsns.NOT_FOUND
+import com.jameskbride.localsns.getCachedConfig
 import com.jameskbride.localsns.getFormAttribute
 import com.jameskbride.localsns.getTopicsMap
 import com.jameskbride.localsns.logAndReturnError
@@ -70,7 +71,7 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
         messageAttributes = messageAttributes,
         topicArn = topicArn
     )
-
+    val cachedConfig = getCachedConfig(vertx)
     if (messageStructure != null) {
          when (messageStructure) {
             "json" -> {
@@ -82,7 +83,8 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
                 publishJsonStructure(
                     publishRequest,
                     camelContext.createProducerTemplate(),
-                    vertx
+                    vertx,
+                    cachedConfig
                 )
             }
             else -> {
@@ -90,6 +92,7 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
                     publishRequest,
                     camelContext.createProducerTemplate(),
                     vertx,
+                    cachedConfig
                 )
             }
         }
@@ -98,6 +101,7 @@ val publishRoute: (RoutingContext) -> Unit = route@{ ctx: RoutingContext ->
             publishRequest,
             camelContext.createProducerTemplate(),
             vertx,
+            cachedConfig
         )
     }
 

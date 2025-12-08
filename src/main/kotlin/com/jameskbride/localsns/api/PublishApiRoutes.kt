@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSyntaxException
+import com.jameskbride.localsns.getCachedConfig
 import com.jameskbride.localsns.getTopicsMap
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
@@ -165,18 +166,21 @@ val publishMessageApiRoute: (RoutingContext) -> Unit = lambda@{ ctx ->
 
         val camelContext = DefaultCamelContext()
         camelContext.start()
+        val cachedConfig = getCachedConfig(ctx.vertx())
 
         if (request.messageStructure == "json") {
             publishJsonStructure(
                 publishRequest,
                 camelContext.createProducerTemplate(),
-                ctx.vertx()
+                ctx.vertx(),
+                cachedConfig,
             )
         } else {
             publishBasicMessageToTopic(
                 publishRequest,
                 camelContext.createProducerTemplate(),
-                ctx.vertx()
+                ctx.vertx(),
+                cachedConfig,
             )
         }
 

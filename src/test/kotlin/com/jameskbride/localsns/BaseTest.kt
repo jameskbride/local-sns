@@ -16,6 +16,11 @@ open class BaseTest {
         return post(baseUrl, data = payload)
     }
 
+    protected fun postQueryParams(data: Map<String, String>): Response {
+      val baseUrl = getBaseUrl()
+      return post(baseUrl, params = data)
+    }
+
     /**
      * Resets the configuration to a clean state for testing
      */
@@ -146,7 +151,7 @@ open class BaseTest {
         return postFormData(data)
     }
 
-    fun unsubscribe(subscriptionArn: String? = null): Response {
+    fun unsubscribe(subscriptionArn: String? = null, useFormData:Boolean = true): Response {
         val data = mutableMapOf(
             "Action" to "Unsubscribe"
         )
@@ -155,7 +160,11 @@ open class BaseTest {
             data["SubscriptionArn"] = subscriptionArn
         }
 
-        return postFormData(data)
+        return if (useFormData) {
+          postFormData(data)
+        } else {
+          postQueryParams(data)
+        }
     }
 
     fun setSubscriptionAttributes(subscriptionArn: String?, attributeName: String?, attributeValue: String?): Response {

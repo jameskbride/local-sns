@@ -2,7 +2,6 @@ package com.jameskbride.localsns
 
 import com.google.gson.Gson
 import com.google.gson.JsonArray
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.jameskbride.localsns.models.MessageAttribute
 import com.jameskbride.localsns.models.Topic
@@ -17,8 +16,8 @@ import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import org.elasticmq.server.ElasticMQServer
 import org.elasticmq.server.config.ElasticMQServerConfig
-import org.json.JSONString
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -31,11 +30,7 @@ import software.amazon.awssdk.services.sns.model.MessageAttributeValue
 import software.amazon.awssdk.services.sns.model.PublishRequest
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.SqsClient
-import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest
-import software.amazon.awssdk.services.sqs.model.DeleteQueueRequest
-import software.amazon.awssdk.services.sqs.model.Message
-import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
-import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse
+import software.amazon.awssdk.services.sqs.model.*
 import java.io.Serializable
 import java.net.URI
 import java.util.*
@@ -132,7 +127,7 @@ class PublishRouteIntegrationTest: BaseTest() {
                 val requestBody = it.body()
                 val gson = Gson()
                 val jsonBody = gson.fromJson(requestBody, JsonObject::class.java)
-                message == jsonBody.get("Message").asString
+                message == jsonBody.get("Message").asString && !jsonBody.get("UnsubscribeURL").isJsonNull
             })
             messages.forEach {
                 sqsClient.deleteMessage(DeleteMessageRequest.builder().receiptHandle(it.receiptHandle()).build())
@@ -629,6 +624,7 @@ class PublishRouteIntegrationTest: BaseTest() {
                 val jsonBody = gson.fromJson(requestBody, JsonObject::class.java)
                 assertTrue(jsonBody.get("SignatureVersion").isJsonPrimitive && jsonBody.get("SignatureVersion").asJsonPrimitive.isString)
                 assertEquals(message, jsonBody.get("Message").asString)
+                assertFalse(jsonBody.get("UnsubscribeURL").isJsonNull)
                 testContext.completeNow()
             }
 

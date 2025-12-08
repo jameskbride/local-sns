@@ -26,7 +26,7 @@ val routeMapping = mapOf(
 val getRoute: (RoutingContext) -> Unit = { ctx: RoutingContext ->
     val logger: Logger = LogManager.getLogger("routes")
     try {
-        val action = ctx.request().getFormAttribute("Action")
+        val action = ctx.request().getFormAttribute("Action") ?: ctx.request().getParam("Action")
         val route = routeMapping.getOrDefault(action, rootRoute)
         route(ctx)
     } catch(ex: Exception) {

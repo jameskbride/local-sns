@@ -1,9 +1,11 @@
 package com.jameskbride.localsns.verticles
 
+import com.jameskbride.localsns.BASE_URL
 import com.jameskbride.localsns.api.config.*
 import com.jameskbride.localsns.api.publishMessageApiRoute
 import com.jameskbride.localsns.api.subscriptions.*
 import com.jameskbride.localsns.api.topics.*
+import com.jameskbride.localsns.getCachedConfig
 import com.jameskbride.localsns.getHttpInterface
 import com.jameskbride.localsns.getPort
 import com.jameskbride.localsns.routes.configRoute
@@ -12,12 +14,14 @@ import com.jameskbride.localsns.routes.healthRoute
 import com.typesafe.config.ConfigFactory
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Promise
+import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServerOptions
 import io.vertx.core.net.SocketAddress.inetSocketAddress
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.handler.BodyHandler
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import java.net.InetAddress
 
 class MainVerticle : AbstractVerticle() {
 
@@ -61,8 +65,12 @@ class MainVerticle : AbstractVerticle() {
     val httpInterface = getHttpInterface(config)
     val port = getPort(config)
 
-    val socketAddress = inetSocketAddress(port, httpInterface)
+    val hostname = System.getenv("LOCAL_SNS_HOSTNAME") ?: httpInterface
+    val baseUrl = "http://$hostname:$port"
+    val cachedConfig = getCachedConfig(vertx)
+    cachedConfig[BASE_URL] = baseUrl
 
+    val socketAddress = inetSocketAddress(port, httpInterface)
     val server = vertx.createHttpServer(HttpServerOptions().setMaxFormAttributeSize(-1))
     server.requestHandler(router).listen(socketAddress) { http ->
       if (http.succeeded()) {

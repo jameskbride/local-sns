@@ -28,10 +28,10 @@ class UnsubscribeRouteTest: BaseTest() {
     }
 
     @Test
-    fun `it returns an error when subscription arn does not exist`(testContext: VertxTestContext) {
+    fun `it returns success when subscription arn does not exist for idempotency`(testContext: VertxTestContext) {
         val response = unsubscribe(createValidArn("queue1"))
 
-        Assertions.assertEquals(404, response.statusCode)
+        Assertions.assertEquals(200, response.statusCode)
 
         testContext.completeNow()
     }
@@ -70,6 +70,19 @@ class UnsubscribeRouteTest: BaseTest() {
         })
 
         testContext.completeNow()
+    }
+
+    @Test
+    fun `it allow request params to be used successfully`(testContext: VertxTestContext) {
+      val topic = createTopicModel("topic1")
+      val subscriptionResponse = subscribe(topic.arn, createCamelSqsEndpoint("endpoint"), "sqs")
+      val subscriptionArn = getSubscriptionArnFromResponse(subscriptionResponse)
+
+      val response = unsubscribe(subscriptionArn, useFormData = false)
+
+      Assertions.assertEquals(200, response.statusCode)
+
+      testContext.completeNow()
     }
 
     @Test

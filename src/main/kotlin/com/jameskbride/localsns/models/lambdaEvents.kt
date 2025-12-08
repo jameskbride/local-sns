@@ -6,7 +6,7 @@ data class LambdaRecord(
     @SerializedName("EventSource") val eventSource:String,
     @SerializedName("EventSubscriptionArn") val eventSubscriptionArn:String,
     @SerializedName("EventVersion") val eventVersion:Double,
-    @SerializedName("Sns") val message: SnsMessage,
+    @SerializedName("Sns") val message: NotificationSnsMessage,
 )
 data class LambdaEvent(
     @SerializedName("Records") val records:List<LambdaRecord> = listOf()
