@@ -322,6 +322,135 @@ class PublishRouteIntegrationTest: BaseTest() {
     }
 
     @Test
+    fun `FilterPolicy MessageAttributes - it does publish when one $or branch matches`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = UUID.randomUUID().toString()
+        val endpoint = createQueue(queueName)
+        val filterPolicyJson = """
+            {
+              "source": ["aws.cloudwatch"],
+                            "${'$'}or": [
+                {"metricName": ["CPUUtilization"]},
+                {"namespace": ["AWS/EC2"]}
+              ]
+            }
+        """.trimIndent()
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to filterPolicyJson
+            )
+        )
+
+        val request = publishRequest(
+            topic,
+            "Hello, SNS!",
+            messageAttributes = listOf(
+                MessageAttribute("source", "aws.cloudwatch"),
+                MessageAttribute("namespace", "AWS/EC2")
+            )
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("source", "namespace")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
+    fun `FilterPolicy MessageAttributes - it does not publish when no $or branches match`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = UUID.randomUUID().toString()
+        val endpoint = createQueue(queueName)
+        val filterPolicyJson = """
+            {
+              "source": ["aws.cloudwatch"],
+                            "${'$'}or": [
+                {"metricName": ["CPUUtilization"]},
+                {"namespace": ["AWS/EC2"]}
+              ]
+            }
+        """.trimIndent()
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to filterPolicyJson
+            )
+        )
+
+        val request = publishRequest(
+            topic,
+            "Hello, SNS!",
+            messageAttributes = listOf(
+                MessageAttribute("source", "aws.cloudwatch"),
+                MessageAttribute("metricName", "ReadLatency")
+            )
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("source", "metricName")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.failNow("Message was not filtered")
+            } else {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
+    fun `FilterPolicy MessageAttributes - it does not publish when top-level key is missing even if $or branch matches`(testContext: VertxTestContext) {
+        val topic = createTopicModel("topic1")
+        val queueName = UUID.randomUUID().toString()
+        val endpoint = createQueue(queueName)
+        val filterPolicyJson = """
+            {
+              "source": ["aws.cloudwatch"],
+                            "${'$'}or": [
+                {"namespace": ["AWS/EC2"]},
+                {"metricName": ["CPUUtilization"]}
+              ]
+            }
+        """.trimIndent()
+        subscribe(
+            topic.arn,
+            endpoint,
+            "sqs",
+            mapOf(
+                "FilterPolicy" to filterPolicyJson
+            )
+        )
+
+        val request = publishRequest(
+            topic,
+            "Hello, SNS!",
+            messageAttributes = listOf(
+                MessageAttribute("namespace", "AWS/EC2")
+            )
+        )
+        snsClient.publish(request)
+
+        val queueUrl = createQueueUrl(queueName)
+        startReceivingMessages(queueUrl, setOf("namespace")) { response ->
+            val messages = response.messages()
+            if (messages.isNotEmpty()) {
+                testContext.failNow("Message was not filtered")
+            } else {
+                testContext.completeNow()
+            }
+        }
+    }
+
+    @Test
     fun `FilterPolicy MessageBody - it does not publish when message body attributes do not match`(testContext: VertxTestContext) {
         val topic = createTopicModel("topic1")
         val queueName = UUID.randomUUID().toString()
