@@ -153,4 +153,109 @@ class MessageBodyFilterPolicyTest {
         """.trimIndent()
         assert(!filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
     }
+
+    @Test
+    fun `it matches when one $or branch matches`() {
+        val policyJson = """
+            {
+              "source": ["aws.cloudwatch"],
+              "${'$'}or": [
+                {"metricName": ["CPUUtilization"]},
+                {"namespace": ["AWS/EC2"]}
+              ]
+            }
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val message = """
+            {"source": "aws.cloudwatch", "namespace": "AWS/EC2"}
+        """.trimIndent()
+        assert(filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
+    }
+
+    @Test
+    fun `it does not match when no $or branch matches`() {
+        val policyJson = """
+            {
+              "source": ["aws.cloudwatch"],
+              "${'$'}or": [
+                {"metricName": ["CPUUtilization"]},
+                {"namespace": ["AWS/EC2"]}
+              ]
+            }
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val message = """
+            {"source": "aws.cloudwatch", "metricName": "ReadLatency"}
+        """.trimIndent()
+        assert(!filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
+    }
+
+    @Test
+    fun `it does not match when top-level key matches but $or branch does not`() {
+        val policyJson = """
+            {
+              "status": ["not_sent"],
+              "${'$'}or": [
+                {"amount": [{"numeric": ["=", 10.5]}]},
+                {"region": ["us-east-1"]}
+              ]
+            }
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val message = """
+            {"status": "not_sent", "amount": 11.0}
+        """.trimIndent()
+        assert(!filterPolicy.matches(gson.fromJson(message, JsonObject::class.java)))
+    }
+
+    @Test
+    fun `it treats invalid $or with one branch as a normal message body key`() {
+        val policyJson = """
+            {
+              "${'$'}or": ["branch-value"]
+            }
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val matchingMessage = """
+            {"${'$'}or": "branch-value"}
+        """.trimIndent()
+        val nonMatchingMessage = """
+            {"${'$'}or": "other"}
+        """.trimIndent()
+
+        assert(filterPolicy.matches(gson.fromJson(matchingMessage, JsonObject::class.java)))
+        assert(!filterPolicy.matches(gson.fromJson(nonMatchingMessage, JsonObject::class.java)))
+    }
+
+    @Test
+    fun `it treats $or with reserved keyword branch fields as a normal message body key`() {
+        val policyJson = """
+            {
+              "${'$'}or": [
+                {"numeric": ["=", 1]},
+                {"metricName": ["CPUUtilization"]}
+              ]
+            }
+        """.trimIndent()
+
+        val filterPolicy = MessageBodyFilterPolicy(policyJson)
+
+        val matchingMessage = """
+            {"${'$'}or": 1}
+        """.trimIndent()
+        val nonMatchingMessage = """
+            {"${'$'}or": 2}
+        """.trimIndent()
+
+        assert(filterPolicy.matches(gson.fromJson(matchingMessage, JsonObject::class.java)))
+        assert(!filterPolicy.matches(gson.fromJson(nonMatchingMessage, JsonObject::class.java)))
+    }
 }
