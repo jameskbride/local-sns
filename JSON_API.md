@@ -130,7 +130,7 @@
   "endpoint": "http://example.com/webhook",
   "attributes": {
     "RawMessageDelivery": "true",
-    "FilterPolicy": "{\"key\": \"value\"}"
+    "FilterPolicy": "{\"eventType\": [\"order_created\"]}"
   }
 }
 ```
@@ -147,11 +147,30 @@
 {
   "attributes": {
     "RawMessageDelivery": "false",
-    "FilterPolicy": "{\"updated\": \"policy\"}"
+    "FilterPolicy": "{\"status\": [\"updated\"]}"
   }
 }
 ```
 - **Response**: Updated subscription object
+
+### FilterPolicy Notes and Examples
+
+`FilterPolicy` is stored as a JSON string in subscription attributes.
+
+Basic exact-match example:
+```json
+"FilterPolicy": "{\"eventType\": [\"order_created\"], \"priority\": [\"high\"]}"
+```
+
+`$or` operator example:
+```json
+"FilterPolicy": "{\"source\": [\"aws.cloudwatch\"], \"$or\": [{\"metricName\": [\"CPUUtilization\"]}, {\"namespace\": [\"AWS/EC2\"]}]}"
+```
+
+Notes:
+- Filter values must be arrays (for example `{"type": ["order"]}` instead of `{"type": "order"}`).
+- `$or` should be an array with at least two object branches.
+- Overall filter support is still limited to the supported matcher types documented in the main README.
 
 ### Delete Subscription
 - **DELETE** `/api/subscriptions/:arn`
@@ -177,7 +196,7 @@
   "endpoint": "http://example.com/webhook",
   "attributes": {
     "RawMessageDelivery": "true",
-    "FilterPolicy": "{\"key\": \"value\"}"
+    "FilterPolicy": "{\"eventType\": [\"order_created\"]}"
   }
 }
 ```
