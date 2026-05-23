@@ -100,8 +100,24 @@ docker-compose up
   | [Numeric Value Range match](https://docs.aws.amazon.com/sns/latest/dg/numeric-value-matching.html#numeric-value-range-matching)                                                                 | No                                                                                           |
   | [And Logic](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html#subscription-filter-policy-payload-constraints)                                               | Yes                                                                                          |
   | [Or Logic](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html#subscription-filter-policy-payload-constraints)                                                | Yes                                                                                          |
-  | [Or Operator](https://docs.aws.amazon.com/sns/latest/dg/and-or-logic.html#or-operator)                                                                                                          | No                                                                                           |
+  | [Or Operator](https://docs.aws.amazon.com/sns/latest/dg/and-or-logic.html#or-operator)                                                                                                          | Yes                                                                                            |
   | [Key Matching](https://docs.aws.amazon.com/sns/latest/dg/attribute-key-matching.html)                                                                                                           | No                                                                                           |
+
+  Example `FilterPolicy` with `$or` for `MessageAttributes` scope:
+  ```json
+  {
+    "source": ["aws.cloudwatch"],
+    "$or": [
+      {"metricName": ["CPUUtilization"]},
+      {"namespace": ["AWS/EC2"]}
+    ]
+  }
+  ```
+
+  Additional notes:
+  - Filter policy values must be arrays (for example, `{"type": ["order"]}`, not `{"type": "order"}`).
+  - For explicit `$or` handling, use an array with at least two object branches.
+  - local-sns supports the `$or` operator itself, but overall FilterPolicy support is still limited by the unsupported matcher types listed in the table above.
 
 ### Additional Endpoints
 * `GET /config` - Returns the current configuration of the local-sns instance.
