@@ -1,4 +1,8 @@
 # Changelog
+## [1.6.0] - 2026-06-02
+### Added
+* Added `$or` support for subscription filters in https://github.com/jameskbride/local-sns/pull/44
+
 ## [1.5.0] - 2025-12-08
 ### Added
 * Implement UnsubscribeURL by @jameskbride in https://github.com/jameskbride/local-sns/pull/41
