@@ -9,33 +9,78 @@ import com.jameskbride.localsns.subscriptions.validateNumericMatcher
 class MessageAttributeFilterPolicy(filterPolicy: String) {
     private val gson = Gson()
     private val filterPolicyJsonObject = gson.fromJson(filterPolicy, JsonObject::class.java)
+    private val reservedOrOperatorKeywords = setOf(
+        "numeric",
+        "prefix",
+        "anything-but",
+        "exists",
+        "cidr",
+        "suffix",
+        "equals-ignore-case",
+        "wildcard"
+    )
 
     fun matches(messageAttributes: Map<String, MessageAttribute>): Boolean {
-        val allKeysPresent = filterPolicyJsonObject.asMap().all { messageAttributes.containsKey(it.key) }
-        if (!allKeysPresent) {
+        return matchesPolicy(filterPolicyJsonObject, messageAttributes)
+    }
+
+    private fun matchesPolicy(policyJsonObject: JsonObject, messageAttributes: Map<String, MessageAttribute>): Boolean {
+        val andPolicyEntries = policyJsonObject.asMap().filterKeys { it != "\$or" }
+        val andEntriesMatch = andPolicyEntries.all {
+            matchesSingleAttributePolicy(it.key, it.value, messageAttributes)
+        }
+        if (!andEntriesMatch) {
             return false
         }
 
-        val attributePolicies = filterPolicyJsonObject.asMap().map {
-            val attributePolicy = when(it.value) {
-                is JsonArray -> {
-                    val firstElement = (it.value.asJsonArray).firstOrNull()
-                    val elementType = getElementType(firstElement)
-                    when (elementType) {
-                        "String" -> StringAttributeFilterPolicy(it.key, (it.value.asJsonArray).map { value -> value.asString })
-                        "Object" -> NumberAttributeFilterPolicy(it.key, firstElement?.asJsonObject)
-                        else -> throw IllegalArgumentException("Unsupported filter policy value type")
-                    }
-                }
-                else -> throw IllegalArgumentException("Unsupported filter policy value type")
+        val orPolicyValue = policyJsonObject.get("\$or") ?: return true
+        if (!isRecognizedOrOperator(orPolicyValue)) {
+            return matchesSingleAttributePolicy("\$or", orPolicyValue, messageAttributes)
+        }
+
+        return orPolicyValue.asJsonArray.any {
+            matchesPolicy(it.asJsonObject, messageAttributes)
+        }
+    }
+
+    private fun isRecognizedOrOperator(orPolicyValue: Any?): Boolean {
+        if (orPolicyValue !is JsonArray || orPolicyValue.size() < 2) {
+            return false
+        }
+
+        return orPolicyValue.all { branch ->
+            if (!branch.isJsonObject) {
+                return@all false
             }
 
-            it.key to attributePolicy
-        }.toMap()
+            val branchFields = branch.asJsonObject.keySet()
+            branchFields.none { reservedOrOperatorKeywords.contains(it) }
+        }
+    }
 
-        return attributePolicies.all {
-            val messageAttribute = messageAttributes[it.key]
-            it.value.matches(messageAttribute!!)
+    private fun matchesSingleAttributePolicy(
+        key: String,
+        policyValue: Any?,
+        messageAttributes: Map<String, MessageAttribute>
+    ): Boolean {
+        val messageAttribute = messageAttributes[key] ?: return false
+        val attributePolicy = buildAttributePolicy(key, policyValue)
+        return attributePolicy.matches(messageAttribute)
+    }
+
+    private fun buildAttributePolicy(key: String, policyValue: Any?): AttributeFilterPolicy {
+        return when (policyValue) {
+            is JsonArray -> {
+                val firstElement = policyValue.firstOrNull()
+                val elementType = getElementType(firstElement)
+                when (elementType) {
+                    "String" -> StringAttributeFilterPolicy(key, policyValue.map { value -> value.asString })
+                    "Object" -> NumberAttributeFilterPolicy(key, firstElement?.asJsonObject)
+                    else -> throw IllegalArgumentException("Unsupported filter policy value type")
+                }
+            }
+
+            else -> throw IllegalArgumentException("Unsupported filter policy value type")
         }
     }
 }

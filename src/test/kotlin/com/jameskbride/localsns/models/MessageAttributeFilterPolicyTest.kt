@@ -241,4 +241,115 @@ class MessageAttributeFilterPolicyTest {
         val result = messageAttributeFilterPolicy.matches(messageAttributes)
         assert(!result) { "Expected basic String filter policy to not match message attributes" }
     }
- }
+
+    @Test
+    fun `it matches when one $or branch matches`() {
+        val filterPolicyJson = """
+            {
+              "source": ["aws.cloudwatch"],
+                            "${'$'}or": [
+                {"metricName": ["CPUUtilization"]},
+                {"namespace": ["AWS/EC2"]}
+              ]
+            }
+        """.trimIndent()
+
+        val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
+        val messageAttributes = mapOf(
+            "source" to MessageAttribute(name="source", value="aws.cloudwatch"),
+            "namespace" to MessageAttribute(name="namespace", value="AWS/EC2")
+        )
+
+        val result = messageAttributeFilterPolicy.matches(messageAttributes)
+        assert(result) { "Expected filter policy with \$or to match when one branch matches" }
+    }
+
+    @Test
+    fun `it does not match when no $or branch matches`() {
+        val filterPolicyJson = """
+            {
+              "source": ["aws.cloudwatch"],
+                            "${'$'}or": [
+                {"metricName": ["CPUUtilization"]},
+                {"namespace": ["AWS/EC2"]}
+              ]
+            }
+        """.trimIndent()
+
+        val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
+        val messageAttributes = mapOf(
+            "source" to MessageAttribute(name="source", value="aws.cloudwatch"),
+            "metricName" to MessageAttribute(name="metricName", value="ReadLatency")
+        )
+
+        val result = messageAttributeFilterPolicy.matches(messageAttributes)
+        assert(!result) { "Expected filter policy with \$or to not match when no branches match" }
+    }
+
+    @Test
+    fun `it does not match when top-level key matches but $or branch does not`() {
+        val filterPolicyJson = """
+            {
+              "status": ["not_sent"],
+                            "${'$'}or": [
+                {"amount": [{"numeric": ["=", 10.5]}]},
+                {"region": ["us-east-1"]}
+              ]
+            }
+        """.trimIndent()
+
+        val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
+        val messageAttributes = mapOf(
+            "status" to MessageAttribute(name="status", value="not_sent"),
+            "amount" to MessageAttribute(name="amount", value="11.0", dataType="Number")
+        )
+
+        val result = messageAttributeFilterPolicy.matches(messageAttributes)
+        assert(!result) { "Expected top-level AND with \$or to fail when no branch matches" }
+    }
+
+    @Test
+    fun `it treats invalid $or with one branch as a normal attribute key`() {
+        val filterPolicyJson = """
+            {
+              "${'$'}or": ["branch-value"]
+            }
+        """.trimIndent()
+
+        val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
+
+        val matches = messageAttributeFilterPolicy.matches(
+            mapOf("\$or" to MessageAttribute(name="\$or", value="branch-value"))
+        )
+        val doesNotMatch = messageAttributeFilterPolicy.matches(
+            mapOf("\$or" to MessageAttribute(name="\$or", value="other"))
+        )
+
+        assert(matches) { "Expected invalid \$or operator shape to be treated as normal key" }
+        assert(!doesNotMatch) { "Expected normal key matching behavior for invalid \$or operator shape" }
+    }
+
+    @Test
+    fun `it treats $or with reserved keyword branch fields as a normal attribute key`() {
+        val filterPolicyJson = """
+            {
+                            "${'$'}or": [
+                                {"numeric": ["=", 1]},
+                {"metricName": ["CPUUtilization"]}
+              ]
+            }
+        """.trimIndent()
+
+        val messageAttributeFilterPolicy = MessageAttributeFilterPolicy(filterPolicyJson)
+
+        val matches = messageAttributeFilterPolicy.matches(
+            mapOf("\$or" to MessageAttribute(name="\$or", value="1", dataType="Number"))
+        )
+        val doesNotMatch = messageAttributeFilterPolicy.matches(
+            mapOf("\$or" to MessageAttribute(name="\$or", value="2", dataType="Number"))
+        )
+
+        assert(matches) { "Expected reserved branch field names to disable \$or operator parsing" }
+        assert(!doesNotMatch) { "Expected fallback matching to honor normal key semantics" }
+    }
+}

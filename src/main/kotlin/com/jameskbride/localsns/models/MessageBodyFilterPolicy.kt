@@ -8,48 +8,98 @@ import com.jameskbride.localsns.subscriptions.validateNumericMatcher
 class MessageBodyFilterPolicy(filterPolicy: String) {
     private val gson = Gson()
     private val filterPolicyJsonObject = gson.fromJson(filterPolicy, JsonObject::class.java)
+    private val reservedOrOperatorKeywords = setOf(
+        "numeric",
+        "prefix",
+        "anything-but",
+        "exists",
+        "cidr",
+        "suffix",
+        "equals-ignore-case",
+        "wildcard"
+    )
 
     fun matches(messageJsonObject: JsonObject): Boolean {
-        val allKeysPresent = filterPolicyJsonObject.asMap().all { messageJsonObject.has(it.key) }
-        if (!allKeysPresent) {
+        return matchesPolicy(filterPolicyJsonObject, messageJsonObject)
+    }
+
+    private fun matchesPolicy(policyJsonObject: JsonObject, messageJsonObject: JsonObject): Boolean {
+        val andPolicyEntries = policyJsonObject.asMap().filterKeys { it != "\$or" }
+        val andEntriesMatch = andPolicyEntries.all {
+            matchesSingleAttributePolicy(it.key, it.value, messageJsonObject)
+        }
+        if (!andEntriesMatch) {
             return false
         }
 
-        val attributePolicies = filterPolicyJsonObject.asMap().map {
-            val attributeType = getElementType(messageJsonObject.get(it.key))
-            if (!listOf("String", "Number", "Boolean", "null").contains(attributeType)) {
-                it.key to NonMatchingMessageBodyFilterPolicy()
-            } else {
-                val filterValue = it.value.asJsonArray
-                val firstElement = filterValue.asList().firstOrNull()
+        val orPolicyValue = policyJsonObject.get("\$or") ?: return true
+        if (!isRecognizedOrOperator(orPolicyValue)) {
+            return matchesSingleAttributePolicy("\$or", orPolicyValue, messageJsonObject)
+        }
+
+        return orPolicyValue.asJsonArray.any {
+            matchesPolicy(it.asJsonObject, messageJsonObject)
+        }
+    }
+
+    private fun isRecognizedOrOperator(orPolicyValue: Any?): Boolean {
+        if (orPolicyValue !is com.google.gson.JsonArray || orPolicyValue.size() < 2) {
+            return false
+        }
+
+        return orPolicyValue.all { branch ->
+            if (!branch.isJsonObject) {
+                return@all false
+            }
+
+            val branchFields = branch.asJsonObject.keySet()
+            branchFields.none { reservedOrOperatorKeywords.contains(it) }
+        }
+    }
+
+    private fun matchesSingleAttributePolicy(key: String, policyValue: Any?, messageJsonObject: JsonObject): Boolean {
+        val attributeType = getElementType(messageJsonObject.get(key))
+        if (!listOf("String", "Number", "Boolean", "null").contains(attributeType)) {
+            return false
+        }
+
+        val attributePolicy = buildAttributePolicy(key, policyValue)
+        return attributePolicy.matches(messageJsonObject)
+    }
+
+    private fun buildAttributePolicy(key: String, policyValue: Any?): MessageFilterPolicy {
+        return when (policyValue) {
+            is com.google.gson.JsonArray -> {
+                val firstElement = policyValue.asList().firstOrNull()
                 val elementType = getElementType(firstElement)
-                val attributePolicy = when (elementType) {
+                when (elementType) {
                     "String" -> {
-                        StringMessageBodyFilterPolicy(it.key, filterValue.map { value -> value.asString })
+                        StringMessageBodyFilterPolicy(key, policyValue.map { value -> value.asString })
                     }
+
                     "Boolean" -> {
                         val booleanValue = firstElement?.asBoolean
-                        BooleanMessageBodyFilterPolicy(it.key, listOf(booleanValue!!))
+                        BooleanMessageBodyFilterPolicy(key, listOf(booleanValue!!))
                     }
+
                     "Object" -> {
                         val numericMatcher = firstElement?.asJsonObject
-                        NumberMessageBodyFilterPolicy(it.key, numericMatcher!!)
+                        NumberMessageBodyFilterPolicy(key, numericMatcher!!)
                     }
+
                     "null" -> {
-                        NullMessageBodyFilterPolicy(it.key)
+                        NullMessageBodyFilterPolicy(key)
                     }
+
                     else -> {
                         throw IllegalArgumentException("Unsupported filter policy value type")
                     }
                 }
-
-                it.key to attributePolicy
             }
 
-        }.toMap()
-
-        return attributePolicies.all { policy ->
-            policy.value.matches(messageJsonObject)
+            else -> {
+                throw IllegalArgumentException("Unsupported filter policy value type")
+            }
         }
     }
 }
